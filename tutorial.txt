@@ -1,0 +1,269 @@
+PDF ↔ Excel Annotator — Tutorial
+================================
+
+This tutorial explains what the application does, how it works under the hood,
+and how to use both the command‑line interface (CLI) and the GUI. It also calls
+out limitations and tips to get the best results on real‑world drawings.
+
+
+1) What This Tool Does
+----------------------
+
+- Reads a list of codes from an Excel workbook (single active sheet).
+- Scans one or more floor‑plan PDFs to find occurrences of those codes.
+- Writes a plain‑text report summarizing which Excel rows were matched.
+- Optionally creates highlighted “annotated” PDF copies for visual review, with
+  popups that include selected Excel row details.
+
+Use cases: mapping door or equipment tags from an asset list to their locations
+on floor plans, validating expected counts, and producing a shareable report.
+
+
+2) How It Works (Under the Hood)
+--------------------------------
+
+Pipeline overview:
+
+- Excel loading
+  - Reads the active sheet.
+  - The “header row” is provided; data starts on the next row.
+  - The “code column” (letters like C or AA) identifies which cells hold codes.
+  - Each non‑empty code is normalized by removing whitespace and uppercasing
+    (for example: "V MP U-1" → "VMPU-1").
+  - Other non‑empty cells in the row are captured as key–value pairs for later
+    inclusion in PDF annotations.
+
+- Code variants
+  - For codes containing dot suffixes (e.g., ABC.01.02), the tool tries
+    progressively shorter variants: ABC.01.02, then ABC.01, then ABC.
+
+- PDF text extraction
+  - First uses the native text layer (via PyMuPDF) to extract words.
+  - Words are grouped by line and combined in sliding sequences up to a
+    configurable “max word span” (default 4) to catch split tokens.
+  - Matches require non‑alphanumeric boundaries to avoid accidental substrings
+    (e.g., ABC will not match inside XABC12).
+
+- Optional OCR (disabled by default)
+  - If enabled, each page is rasterized and passed to Tesseract at one or more
+    zoom levels (base zoom default 2.0; if below 3, a higher pass is added).
+  - OCR outputs words with confidence scores; only words at or above the
+    threshold (default 90) are kept.
+  - Multiple rotation angles can be tried (default 0,90,180,270).
+  - If Tesseract is missing or fails, OCR is skipped and a note is added.
+
+- Optional vector‑label OCR
+  - Heuristically crops likely CAD label regions using PDF drawing rectangles
+    and runs OCR on those sub‑images (useful for colored vector labels).
+
+- Matching and reporting
+  - Each Excel entry attempts to consume one PDF occurrence (so counts can be
+    compared). The report includes a notes section summarizing mismatches.
+  - When annotation export is enabled, highlights are added to each matched PDF
+    region with a short popup containing row details.
+
+
+3) Installation and Setup
+-------------------------
+
+Requirements:
+- Python 3.10+ (tested with 3.11)
+- Packages from requirements.txt (PyMuPDF, openpyxl, PySide6)
+- Optional: Tesseract OCR in your PATH if you plan to enable OCR
+
+Setup steps:
+1. python3 -m venv .venv
+2. source .venv/bin/activate
+3. pip install -r requirements.txt
+
+
+4) Using the CLI
+----------------
+
+Basic run (single PDF):
+  python -m pdf_excel_annotator.cli \
+    --excel-path "/path/to/locks.xlsx" \
+    --pdf-path "/path/to/floorplan-l1.pdf" \
+    --code-column C \
+    --header-row 1 \
+    --output-path "/path/to/output/report.txt"
+
+Multiple PDFs:
+  python -m pdf_excel_annotator.cli \
+    --excel-path "/path/to/locks.xlsx" \
+    --pdf-path "/path/to/l1.pdf" "/path/to/l2.pdf" \
+    --code-column C \
+    --header-row 1 \
+    --output-path "/path/to/output/report.txt"
+
+Limit the Excel rows scanned (inclusive):
+  ... --max-row 500
+
+Generate annotated PDFs alongside the report:
+  ... --annotated-dir "/path/to/output"
+
+Enable raster OCR when native text is missing or incomplete:
+  ... --enable-ocr --ocr-confidence 90 --ocr-zoom 2 --ocr-angles 0,90,180,270
+
+Tune matching when codes are fragmented:
+  ... --max-word-span 6
+
+CLI argument notes:
+- --excel-path (required): path to the workbook (active sheet is used)
+- --pdf-path (required): one or more PDFs (space‑separated)
+- --output-path (required): destination text report path
+- --annotated-dir (optional): where to save highlighted PDF copies
+- --code-column (required): Excel column letters that contain the codes
+- --header-row (required): row number that contains headers
+- --max-row (optional): last row to scan (inclusive)
+- --max-word-span (default 4): number of consecutive words to consider
+- --enable-ocr (optional): turn on OCR fallback
+- --ocr-confidence (default 90): minimum OCR confidence to keep words
+- --ocr-zoom (default 2.0): base rendering zoom; values <3 add a higher pass
+- --ocr-angles (default 0,90,180,270): rotations to try during OCR
+- --enable-vector-ocr (optional): OCR likely vector label regions
+
+Output files:
+- Report: a UTF‑8 text file with a table of Excel rows and matched status.
+- Annotated PDFs: created only when --annotated-dir is provided; filenames are
+  suffixed with a timestamp to avoid overwriting.
+
+
+5) Using the GUI
+----------------
+
+Launch:
+  python gui.py
+
+Step‑by‑step:
+1) Files panel
+   - Excel file: choose the workbook that lists your codes.
+   - PDF files: drag and drop or use “Add PDF…”
+   - Output directory: folder where the report (and PDFs, if enabled) are saved.
+   - Annotated PDFs: checkbox is enabled by default to export highlights.
+
+2) Options panel
+   - Code column: letters like C or AA (validated).
+   - Header row: row number containing headers (validated; must be ≥ 1).
+   - Limit rows: optional cap for how many Excel rows to scan.
+
+3) Advanced Options (toggle)
+   - Max word span: increase if codes are split across multiple OCR tokens.
+   - Enable OCR: turn on when the PDF’s text layer is missing or incomplete.
+   - OCR confidence: default 90 (raise for precision, lower for recall).
+   - OCR zoom: default 2; increase for tiny text at the cost of speed.
+   - OCR angles: comma‑separated rotations (e.g., 0,90,180,270).
+   - Vector OCR: attempts OCR on likely CAD label rectangles.
+
+4) Run and monitor
+   - Click “Process” to start. The log shows progress and final notes.
+   - A completion dialog lists where files were saved and any warnings.
+
+
+6) Excel Sheet Expectations
+---------------------------
+
+- Single active worksheet is read.
+- Provide a correct header row index (data starts on the next row).
+- The code column must be letters (e.g., C or AA) and contain the identifiers
+  you want to find in PDFs.
+- Empty cells are ignored; whitespace is trimmed; only non‑empty values are
+  considered.
+- Codes are normalized by removing whitespace and upper‑casing. If your plan
+  text uses consistent separators (spaces, hyphens), normalization helps catch
+  minor formatting differences.
+
+Example layout (described):
+- Row 1 (headers): Code | Room | Level | Notes
+- Rows 2..N: values; the “Code” column is specified via --code-column (e.g., C)
+
+
+7) Report Format
+----------------
+
+The report is plain text and includes:
+- Metadata (input PDFs, Excel path, code column, header row, row cap)
+- A table with columns: Excel Row | Code | Matched | Source
+- Notes with count mismatches and OCR warnings, if any
+
+Example excerpt:
+
+  PDF ↔ Excel Match Report
+  Generated: 2025-01-01T12:34:56
+  PDF: /plans/floorplan-l1.pdf
+  Excel: /data/locks.xlsx
+  Code column: C
+  Header row: 1
+
+  +-----------+---------+---------+--------+
+  | Excel Row | Code    | Matched | Source |
+  +===========+=========+=========+========+
+  | 2         | VMPU-1  | Yes     | text   |
+  | 3         | ABC.01  | No      | -      |
+  +-----------+---------+---------+--------+
+
+  Notes:
+    • Code `ABC.01` matched 0 of 1 expected entries.
+
+
+8) Tips and Best Practices
+--------------------------
+
+- If you do not get matches, first try without OCR; many PDFs contain a usable
+  text layer. Only enable OCR if necessary (it is slower and noisier).
+- Increase max word span for labels split into multiple OCR tokens (e.g., “V”,
+  “MP”, “U-1” on the same line). Start with 4–6.
+- For tiny labels, raise OCR zoom (3–6) and consider lowering OCR confidence
+  slightly if recall is poor.
+- Keep Excel codes consistent. Avoid trailing spaces and ensure the specified
+  code column really contains the identifiers you expect to find in PDFs.
+- Use annotated PDFs to quickly validate whether a “No” might be due to missed
+  OCR or a genuine absence on the drawing.
+
+
+9) Limitations and Known Behaviors
+----------------------------------
+
+- Single active worksheet: multi‑sheet selection is not currently supported.
+- Matching consumes one PDF occurrence per Excel entry; surplus PDF occurrences
+  are noted but not all are tied to rows when counts differ.
+- OCR quality depends on Tesseract and image quality; results may vary across
+  fonts, rotations, and low‑contrast labels. OCR is disabled by default.
+- Vector‑label OCR uses heuristics based on PDF drawing rectangles and can both
+  miss and over‑include regions depending on how the PDF was authored.
+- Performance on very large PDFs or dozens of input files may be slow when OCR
+  is enabled due to multiple zoom and rotation passes.
+- Boundary matching avoids substring false positives but may miss cases where a
+  code is fused into a longer alphanumeric string without separators.
+- PDF viewers display annotations differently; highlight appearance and popup
+  behavior can vary by viewer and platform.
+
+
+10) Troubleshooting
+-------------------
+
+- “OCR skipped…” note in the report
+  - Tesseract is not installed or not on PATH. Install it or run without OCR.
+
+- “No codes found in the Excel workbook”
+  - Check the header row and code column settings; verify the active sheet; make
+    sure the code cells are not empty and do not contain only whitespace.
+
+- “PDF file(s) not found”
+  - Confirm paths and filenames; ensure they exist and are readable.
+
+- GUI “Process” does nothing
+  - Ensure the Excel path is valid, at least one PDF is listed, and an output
+    directory is selected. The log panel will show validation errors.
+
+- Too many or too few matches
+  - Adjust max word span; try enabling OCR; tweak OCR confidence; review the
+    Notes section for count mismatches to guide your next step.
+
+
+Appendix: Alternative Launch
+----------------------------
+
+You can run the CLI via the small shim too:
+  python main.py --excel-path ... --pdf-path ... --code-column ... --header-row ... --output-path ...
+

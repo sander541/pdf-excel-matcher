@@ -1,7 +1,23 @@
 .venv/
+venv/
 .idea/
 *.iml
 .DS_Store
 resource/
 __pycache__/
 *.pyc
+build/
+dist/
+
+# Editors
+.vscode/
+
+# Python caches and tooling
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+coverage.xml
+
+# OS junk
+Thumbs.db
