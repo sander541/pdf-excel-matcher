@@ -7,9 +7,34 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - 'pdf_excel_annotator/**'
+              - 'gui.py'
+              - 'main.py'
+              - 'pyproject.toml'
+              - 'requirements.txt'
+              - 'pdf-excel-annotator.spec'
+              - 'resource/**'
+              - '.github/workflows/build.yml'
+
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.app == 'true' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:

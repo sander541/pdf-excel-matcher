@@ -53,6 +53,7 @@ TOOLTIPS: dict[str, str] = {
     "enable_ocr_hint": "OCR fallback\nTurn on when native text extraction misses labels; expect longer runs.",
     "enable_vector": "Vector OCR\nAttempt to OCR CAD-style vector labels (door tags, etc.).",
     "enable_vector_hint": "Vector labels\nScans likely label rectangles even when there is no text layer.",
+    "dark_theme": "Dark theme\nUse a darker palette better suited for Windows and low‑light environments.",
     "process_button": "Process files\nScan PDFs, generate the report, and write annotated copies if enabled.",
     "clear_log": "Clear log\nRemove every log message from this session.",
 }
@@ -189,6 +190,7 @@ class AdvancedSection:
     ocr_angles_edit: QLineEdit
     enable_ocr_check: QCheckBox
     enable_vector_check: QCheckBox
+    dark_theme_check: QCheckBox
 
 
 @dataclass
@@ -445,6 +447,18 @@ def build_advanced_section() -> AdvancedSection:
     vector_layout.addStretch()
     layout.addWidget(vector_row, 2, 2, 1, 2)
 
+    # Appearance
+    dark_theme_check = QCheckBox("Use dark theme")
+    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
+    theme_row = QWidget()
+    theme_layout = QHBoxLayout(theme_row)
+    theme_layout.setContentsMargins(0, 0, 0, 0)
+    theme_layout.setSpacing(4)
+    theme_layout.addWidget(dark_theme_check)
+    theme_layout.addWidget(HintLabel(tooltip_text("dark_theme")))
+    theme_layout.addStretch()
+    layout.addWidget(theme_row, 3, 0, 1, 4)
+
     return AdvancedSection(
         box=box,
         word_span_spin=word_span_spin,
@@ -453,6 +467,7 @@ def build_advanced_section() -> AdvancedSection:
         ocr_angles_edit=ocr_angles_edit,
         enable_ocr_check=enable_ocr_check,
         enable_vector_check=enable_vector_check,
+        dark_theme_check=dark_theme_check,
     )
 
 

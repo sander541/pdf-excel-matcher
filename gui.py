@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QToolTip,
 )
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QFontDatabase, QPalette, QColor
 
 from pdf_excel_annotator.config import PipelineOptions
 from pdf_excel_annotator.pipeline import run_pipeline
@@ -64,6 +64,10 @@ class AnnotatorWindow(QWidget):
         super().__init__()
         self.setWindowTitle("PDF ↔ Excel Annotator")
         self.worker: AnnotatorWorker | None = None
+        app = QApplication.instance()
+        self._orig_style = app.style().objectName() if app else ""
+        self._orig_palette = app.palette() if app else None
+        self._orig_stylesheet = app.styleSheet() if app else ""
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -100,6 +104,7 @@ class AnnotatorWindow(QWidget):
         self.ocr_angles_edit = advanced.ocr_angles_edit
         self.enable_ocr_check = advanced.enable_ocr_check
         self.enable_vector_check = advanced.enable_vector_check
+        self.dark_theme_check = advanced.dark_theme_check
 
         log_section = build_log_section()
         self.log = log_section.text_edit
@@ -145,6 +150,47 @@ class AnnotatorWindow(QWidget):
         main_layout.addWidget(splitter)
 
         self._update_pdf_buttons()
+        # Default to dark theme on Windows for better appearance; user can toggle in Advanced.
+        if sys.platform.startswith("win"):
+            self.dark_theme_check.setChecked(True)
+        self.dark_theme_check.toggled.connect(self._toggle_dark_theme)
+        # Apply current theme selection immediately
+        self._toggle_dark_theme(self.dark_theme_check.isChecked())
+
+    def _toggle_dark_theme(self, enabled: bool) -> None:
+        app = QApplication.instance()
+        if not app:
+            return
+        if enabled:
+            self._apply_dark_palette(app)
+        else:
+            # Restore original app visuals
+            if self._orig_style:
+                app.setStyle(self._orig_style)
+            if self._orig_palette is not None:
+                app.setPalette(self._orig_palette)
+            app.setStyleSheet(self._orig_stylesheet)
+
+    def _apply_dark_palette(self, app: QApplication) -> None:
+        app.setStyle("Fusion")
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        palette.setColor(QPalette.WindowText, Qt.white)
+        palette.setColor(QPalette.Base, QColor(35, 35, 35))
+        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ToolTipBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ToolTipText, Qt.white)
+        palette.setColor(QPalette.Text, Qt.white)
+        palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ButtonText, Qt.white)
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.HighlightedText, Qt.black)
+        app.setPalette(palette)
+        # Keep existing tooltip styling and any other rules
+        base_css = self._orig_stylesheet or ""
+        app.setStyleSheet(base_css)
 
     def _pick_excel(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
