@@ -1,0 +1,16 @@
+[project]
+name = "pdf-excel-annotator"
+version = "0.1.0"
+description = "Command-line and GUI tool for matching Excel codes to PDF plans."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "openpyxl>=3.1",
+    "PyMuPDF>=1.23",
+]
+
+[project.optional-dependencies]
+gui = ["PySide6>=6.6"]
+
+[project.scripts]
+pdf-annotator = "pdf_excel_annotator.cli:main"
