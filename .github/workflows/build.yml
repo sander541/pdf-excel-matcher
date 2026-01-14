@@ -8,13 +8,30 @@ on:
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.11"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+            label: linux
+            platform: linux
+          - os: windows-latest
+            python-version: "3.11"
+            label: windows
+            platform: windows
+          - os: macos-latest
+            python-version: "3.11"
+            label: macos-arm64
+            platform: macos
+            mac-arch: arm64
+          - os: macos-latest
+            python-version: "3.11"
+            label: macos-x86_64
+            platform: macos
+            mac-arch: x86_64
 
     steps:
       - name: Check out repository
@@ -30,8 +47,19 @@ jobs:
       - name: Upgrade pip
         run: python -m pip install --upgrade pip wheel setuptools
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux/Windows/macOS arm64)
+        if: matrix.platform != 'macos' || matrix.mac-arch == 'arm64'
         run: pip install -r requirements.txt pyinstaller
+
+      - name: Install Rosetta (macOS x86_64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
+        uses: apple-actions/setup-rosetta@v1
+
+      - name: Install dependencies (macOS x86_64 under Rosetta)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
+        run: |
+          arch -x86_64 python -m pip install --upgrade pip wheel setuptools
+          arch -x86_64 python -m pip install -r requirements.txt pyinstaller
 
       - name: Show environment
         run: |
@@ -39,18 +67,32 @@ jobs:
           pip --version
           python -c "import PySide6, fitz, openpyxl; print('PySide6', PySide6.__version__); print('PyMuPDF', fitz.__doc__.split()[1]); print('openpyxl', openpyxl.__version__)"
 
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller (Linux/Windows)
+        if: matrix.platform != 'macos'
         run: pyinstaller pdf-excel-annotator.spec
+
+      - name: Build with PyInstaller (macOS arm64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'arm64'
+        run: python -m PyInstaller --target-arch arm64 pdf-excel-annotator.spec
+
+      - name: Build with PyInstaller (macOS x86_64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
+        run: arch -x86_64 python -m PyInstaller --target-arch x86_64 pdf-excel-annotator.spec
 
       - name: Package artifact (Linux)
         if: runner.os == 'Linux'
         run: |
           tar -czf pdf-excel-annotator-linux.tar.gz -C dist pdf-excel-annotator
 
-      - name: Package artifact (macOS)
-        if: runner.os == 'macOS'
+      - name: Package artifact (macOS arm64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'arm64'
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos-arm64.zip
+
+      - name: Package artifact (macOS x86_64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos-x86_64.zip
 
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
@@ -58,13 +100,34 @@ jobs:
         run: |
           Compress-Archive -Path "dist/pdf-excel-annotator/*" -DestinationPath "pdf-excel-annotator-windows.zip"
 
-      - name: Upload artifact
+      - name: Upload artifact (Linux)
+        if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-excel-annotator-${{ runner.os }}
-          path: |
-            pdf-excel-annotator-linux.tar.gz
-            pdf-excel-annotator-macos.zip
-            pdf-excel-annotator-windows.zip
+          name: pdf-excel-annotator-linux
+          path: pdf-excel-annotator-linux.tar.gz
           if-no-files-found: error
 
+      - name: Upload artifact (Windows)
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-excel-annotator-windows
+          path: pdf-excel-annotator-windows.zip
+          if-no-files-found: error
+
+      - name: Upload artifact (macOS arm64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-excel-annotator-macos-arm64
+          path: pdf-excel-annotator-macos-arm64.zip
+          if-no-files-found: error
+
+      - name: Upload artifact (macOS x86_64)
+        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-excel-annotator-macos-x86_64
+          path: pdf-excel-annotator-macos-x86_64.zip
+          if-no-files-found: error
