@@ -8,35 +8,13 @@ on:
 
 jobs:
   build:
-    name: Build (${{ matrix.label }})
-    runs-on: ${{ fromJSON(matrix.runner) }}
-    continue-on-error: ${{ matrix.allow-failure == true || matrix.allow-failure == 'true' }}
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: "\"ubuntu-latest\""
-            python-version: "3.11"
-            label: linux
-            platform: linux
-            allow-failure: false
-          - runner: "\"windows-latest\""
-            python-version: "3.11"
-            label: windows
-            platform: windows
-            allow-failure: false
-          - runner: "\"macos-latest\""
-            python-version: "3.11"
-            label: macos-arm64
-            platform: macos
-            mac-arch: arm64
-            allow-failure: false
-          - runner: "[\"self-hosted\", \"macos\", \"x86_64\"]"
-            python-version: "3.11"
-            label: macos-x86_64
-            platform: macos
-            mac-arch: x86_64
-            allow-failure: true
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11"]
 
     steps:
       - name: Check out repository
@@ -69,15 +47,10 @@ jobs:
         run: |
           tar -czf pdf-excel-annotator-linux.tar.gz -C dist pdf-excel-annotator
 
-      - name: Package artifact (macOS arm64)
-        if: matrix.platform == 'macos' && matrix.mac-arch == 'arm64'
+      - name: Package artifact (macOS)
+        if: runner.os == 'macOS'
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos-arm64.zip
-
-      - name: Package artifact (macOS x86_64)
-        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
-        run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos-x86_64.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos.zip
 
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
@@ -86,7 +59,7 @@ jobs:
           Compress-Archive -Path "dist/pdf-excel-annotator/*" -DestinationPath "pdf-excel-annotator-windows.zip"
 
       - name: Upload artifact (Linux)
-        if: matrix.platform == 'linux'
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: pdf-excel-annotator-linux
@@ -94,25 +67,17 @@ jobs:
           if-no-files-found: error
 
       - name: Upload artifact (Windows)
-        if: matrix.platform == 'windows'
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: pdf-excel-annotator-windows
           path: pdf-excel-annotator-windows.zip
           if-no-files-found: error
 
-      - name: Upload artifact (macOS arm64)
-        if: matrix.platform == 'macos' && matrix.mac-arch == 'arm64'
+      - name: Upload artifact (macOS)
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-excel-annotator-macos-arm64
-          path: pdf-excel-annotator-macos-arm64.zip
-          if-no-files-found: error
-
-      - name: Upload artifact (macOS x86_64)
-        if: matrix.platform == 'macos' && matrix.mac-arch == 'x86_64'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-excel-annotator-macos-x86_64
-          path: pdf-excel-annotator-macos-x86_64.zip
+          name: pdf-excel-annotator-macos
+          path: pdf-excel-annotator-macos.zip
           if-no-files-found: error
