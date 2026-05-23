@@ -2,14 +2,14 @@ PDF ↔ Excel Annotator — Tutorial
 ================================
 
 This tutorial explains what the application does, how it works under the hood,
-and how to use both the command‑line interface (CLI) and the GUI. It also calls
-out limitations and tips to get the best results on real‑world drawings.
+and how to use the downloadable application. It also calls out limitations and
+tips to get the best results on real‑world drawings.
 
 
 1) What This Tool Does
 ----------------------
 
-- Reads a list of codes from an Excel workbook (single active sheet).
+- Reads a list of codes from an Excel workbook (Currently processes single active sheet, multi-sheet support can be added).
 - Scans one or more floor‑plan PDFs to find occurrences of those codes.
 - Writes a plain‑text report summarizing which Excel rows were matched.
 - Optionally creates highlighted “annotated” PDF copies for visual review, with
@@ -62,103 +62,33 @@ Pipeline overview:
   - When annotation export is enabled, highlights are added to each matched PDF
     region with a short popup containing row details.
 
+3) Using the application
+------------------------
 
-3) Installation and Setup
--------------------------
+Download and open
+- Windows: download the Windows artifact from Releases/Actions, unzip, and run the included `.exe`.
 
-Requirements:
-- Python 3.10+ (tested with 3.11)
-- Packages from requirements.txt (PyMuPDF, openpyxl, PySide6)
-- Optional: Tesseract OCR in your PATH if you plan to enable OCR
+Set up your run
+- Excel file: select the workbook containing the codes (active sheet is used).
+- PDF files: add one or more floor‑plan PDFs (you can drag and drop into the list).
+- Output directory: choose where to save the plain‑text report and optional annotated PDFs.
 
-Setup steps:
-1. python3 -m venv .venv
-2. source .venv/bin/activate
-3. pip install -r requirements.txt
+Required options
+- Code column: Excel column letters where codes live (e.g., C or AA).
+- Header row: the row index containing headers; data starts on the next row.
 
+Optional settings
+- Limit rows: cap how many Excel rows are scanned to speed up trials.
+- Advanced Options (click “Show Advanced Options”):
+  - Max word span: increase if codes are split across multiple words.
+  - Enable OCR: use only if native text search misses labels (slower). Adjust OCR zoom, confidence, angles as needed.
+  - Enable vector OCR: scans likely label rectangles (useful for CAD‑style tags).
+  - Use dark theme: applies a darker palette (default on Windows).
 
-4) Using the CLI
-----------------
-
-Basic run (single PDF):
-  python -m pdf_excel_annotator.cli \
-    --excel-path "/path/to/locks.xlsx" \
-    --pdf-path "/path/to/floorplan-l1.pdf" \
-    --code-column C \
-    --header-row 1 \
-    --output-path "/path/to/output/report.txt"
-
-Multiple PDFs:
-  python -m pdf_excel_annotator.cli \
-    --excel-path "/path/to/locks.xlsx" \
-    --pdf-path "/path/to/l1.pdf" "/path/to/l2.pdf" \
-    --code-column C \
-    --header-row 1 \
-    --output-path "/path/to/output/report.txt"
-
-Limit the Excel rows scanned (inclusive):
-  ... --max-row 500
-
-Generate annotated PDFs alongside the report:
-  ... --annotated-dir "/path/to/output"
-
-Enable raster OCR when native text is missing or incomplete:
-  ... --enable-ocr --ocr-confidence 90 --ocr-zoom 2 --ocr-angles 0,90,180,270
-
-Tune matching when codes are fragmented:
-  ... --max-word-span 6
-
-CLI argument notes:
-- --excel-path (required): path to the workbook (active sheet is used)
-- --pdf-path (required): one or more PDFs (space‑separated)
-- --output-path (required): destination text report path
-- --annotated-dir (optional): where to save highlighted PDF copies
-- --code-column (required): Excel column letters that contain the codes
-- --header-row (required): row number that contains headers
-- --max-row (optional): last row to scan (inclusive)
-- --max-word-span (default 4): number of consecutive words to consider
-- --enable-ocr (optional): turn on OCR fallback
-- --ocr-confidence (default 90): minimum OCR confidence to keep words
-- --ocr-zoom (default 2.0): base rendering zoom; values <3 add a higher pass
-- --ocr-angles (default 0,90,180,270): rotations to try during OCR
-- --enable-vector-ocr (optional): OCR likely vector label regions
-
-Output files:
-- Report: a UTF‑8 text file with a table of Excel rows and matched status.
-- Annotated PDFs: created only when --annotated-dir is provided; filenames are
-  suffixed with a timestamp to avoid overwriting.
-
-
-5) Using the GUI
-----------------
-
-Launch:
-  python gui.py
-
-Step‑by‑step:
-1) Files panel
-   - Excel file: choose the workbook that lists your codes.
-   - PDF files: drag and drop or use “Add PDF…”
-   - Output directory: folder where the report (and PDFs, if enabled) are saved.
-   - Annotated PDFs: checkbox is enabled by default to export highlights.
-
-2) Options panel
-   - Code column: letters like C or AA (validated).
-   - Header row: row number containing headers (validated; must be ≥ 1).
-   - Limit rows: optional cap for how many Excel rows to scan.
-
-3) Advanced Options (toggle)
-   - Max word span: increase if codes are split across multiple OCR tokens.
-   - Enable OCR: turn on when the PDF’s text layer is missing or incomplete.
-   - OCR confidence: default 90 (raise for precision, lower for recall).
-   - OCR zoom: default 2; increase for tiny text at the cost of speed.
-   - OCR angles: comma‑separated rotations (e.g., 0,90,180,270).
-   - Vector OCR: attempts OCR on likely CAD label rectangles.
-
-4) Run and monitor
-   - Click “Process” to start. The log shows progress and final notes.
-   - A completion dialog lists where files were saved and any warnings.
-
+Run and review
+- Click “Process”. Progress appears in the log panel.
+- When finished, open `report.txt` in the chosen output folder.
+- If “Also save annotated PDFs” is enabled, open the generated PDF copies to see highlights and popups with Excel row details.
 
 6) Excel Sheet Expectations
 ---------------------------
@@ -243,7 +173,7 @@ Example excerpt:
 -------------------
 
 - “OCR skipped…” note in the report
-  - Tesseract is not installed or not on PATH. Install it or run without OCR.
+  - Run without OCR and report bug
 
 - “No codes found in the Excel workbook”
   - Check the header row and code column settings; verify the active sheet; make
@@ -260,10 +190,5 @@ Example excerpt:
   - Adjust max word span; try enabling OCR; tweak OCR confidence; review the
     Notes section for count mismatches to guide your next step.
 
-
-Appendix: Alternative Launch
-----------------------------
-
-You can run the CLI via the small shim too:
-  python main.py --excel-path ... --pdf-path ... --code-column ... --header-row ... --output-path ...
+- Visuals too bright on Windows: enable “Use dark theme” in Advanced.
 

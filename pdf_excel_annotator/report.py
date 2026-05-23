@@ -48,16 +48,33 @@ def write_report(
         lines.append(f"Max row: {max_row}")
     lines.append("")
 
-    headers = ["Excel Row", "Code", "Matched", "Source"]
-    table_rows = [
-        [
-            str(row.excel_row),
-            row.code,
-            "Yes" if row.matched else "No",
-            row.detection_source or "-",
+    # Check if any row has expected_count > 1 (meaning count column was used)
+    has_counts = any(row.expected_count > 1 for row in rows)
+
+    if has_counts:
+        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Source"]
+        table_rows = [
+            [
+                str(row.excel_row),
+                row.code,
+                str(row.expected_count),
+                str(row.actual_count),
+                "Yes" if row.matched else "No",
+                row.detection_source or "-",
+            ]
+            for row in rows
         ]
-        for row in rows
-    ]
+    else:
+        headers = ["Excel Row", "Code", "Matched", "Source"]
+        table_rows = [
+            [
+                str(row.excel_row),
+                row.code,
+                "Yes" if row.matched else "No",
+                row.detection_source or "-",
+            ]
+            for row in rows
+        ]
     if not table_rows:
         table_rows.append(["N/A", "N/A", "N/A", "N/A"])
 

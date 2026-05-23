@@ -17,6 +17,7 @@ class ExcelCodeEntry:
     code_norm: str
     excel_row: int
     row_data: Sequence[Tuple[str, str]]
+    expected_count: int = 1  # From count_column, defaults to 1 if not specified
 
 
 def load_excel_codes(
@@ -24,9 +25,11 @@ def load_excel_codes(
     code_column: str,
     header_row: int,
     max_row: int | None = None,
+    count_column: str | None = None,
 ) -> List[ExcelCodeEntry]:
 
     column_index = column_index_from_string(code_column.upper())
+    count_col_index = column_index_from_string(count_column.upper()) if count_column else None
     workbook = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
         sheet = workbook.active  # single-sheet assumption for now
@@ -66,12 +69,23 @@ def load_excel_codes(
                 header = headers[col_idx - 1]
                 row_entries.append((header, value_text))
 
+            # Extract expected count if count_column is specified
+            expected_count = 1
+            if count_col_index:
+                count_cell = sheet.cell(row=row_idx, column=count_col_index)
+                if count_cell.value is not None:
+                    try:
+                        expected_count = max(1, int(count_cell.value))
+                    except (ValueError, TypeError):
+                        expected_count = 1
+
             entries.append(
                 ExcelCodeEntry(
                     code_raw=text,
                     code_norm=normalized,
                     excel_row=row_idx,
                     row_data=row_entries,
+                    expected_count=expected_count,
                 )
             )
         return entries

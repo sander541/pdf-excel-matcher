@@ -39,6 +39,7 @@ def run_pipeline(
         options.code_column,
         options.header_row,
         max_row=options.max_row,
+        count_column=options.count_column,
     )
     if not excel_entries:
         message = "No codes found in the Excel workbook."
