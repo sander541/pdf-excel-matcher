@@ -10,6 +10,9 @@ jobs:
   changes:
     name: Detect relevant changes
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
     outputs:
       app: ${{ steps.filter.outputs.app }}
     steps:
