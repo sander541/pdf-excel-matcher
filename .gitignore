@@ -9,6 +9,9 @@ __pycache__/
 build/
 dist/
 
+# Distribution documentation (local only, sensitive distribution info)
+DISTRIBUTION.md
+
 # Editors
 .vscode/
 
