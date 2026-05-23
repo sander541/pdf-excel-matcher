@@ -5,11 +5,13 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
   changes:
     name: Detect relevant changes
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     permissions:
       pull-requests: read
       contents: read
@@ -41,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest]
         python-version: ["3.11"]
 
     steps:
@@ -70,42 +72,14 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller pdf-excel-annotator.spec
 
-      - name: Package artifact (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          tar -czf pdf-excel-annotator-linux.tar.gz -C dist pdf-excel-annotator
-
-      - name: Package artifact (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/pdf-excel-annotator.app pdf-excel-annotator-macos.zip
-
       - name: Package artifact (Windows)
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Compress-Archive -Path "dist/pdf-excel-annotator/*" -DestinationPath "pdf-excel-annotator-windows.zip"
 
-      - name: Upload artifact (Linux)
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-excel-annotator-linux
-          path: pdf-excel-annotator-linux.tar.gz
-          if-no-files-found: error
-
       - name: Upload artifact (Windows)
-        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: pdf-excel-annotator-windows
           path: pdf-excel-annotator-windows.zip
-          if-no-files-found: error
-
-      - name: Upload artifact (macOS)
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-excel-annotator-macos
-          path: pdf-excel-annotator-macos.zip
           if-no-files-found: error
