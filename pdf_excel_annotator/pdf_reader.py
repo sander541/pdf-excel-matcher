@@ -24,6 +24,7 @@ class PdfCodeOccurrence:
     y1: float
     source: str
     pdf_path: str
+    nearby_values: Tuple[str, ...] = ()
 
 
 @dataclass
@@ -116,6 +117,7 @@ def extract_pdf_occurrences(
             # Sort by block, line, then word number to retain reading order.
             words.sort(key=lambda w: (w.block, w.line, w.word))
             lines = _group_words_by_line(words)
+            page_occurrences: List[PdfCodeOccurrence] = []
             for line_words in lines.values():
                 for candidate in _generate_sequences(
                     line_words, page_index, max_word_span, pdf_path
@@ -124,19 +126,20 @@ def extract_pdf_occurrences(
                     if not matched_codes:
                         continue
                     for code in matched_codes:
-                        matches.setdefault(code, []).append(
-                            PdfCodeOccurrence(
-                                code_text=candidate.code_text,
-                                code_norm=code,
-                                page=candidate.page,
-                                x0=candidate.x0,
-                                y0=candidate.y0,
-                                x1=candidate.x1,
-                                y1=candidate.y1,
-                                source=candidate.source,
-                                pdf_path=candidate.pdf_path,
-                            )
+                        occ = PdfCodeOccurrence(
+                            code_text=candidate.code_text,
+                            code_norm=code,
+                            page=candidate.page,
+                            x0=candidate.x0,
+                            y0=candidate.y0,
+                            x1=candidate.x1,
+                            y1=candidate.y1,
+                            source=candidate.source,
+                            pdf_path=candidate.pdf_path,
                         )
+                        page_occurrences.append(occ)
+                        matches.setdefault(code, []).append(occ)
+            _populate_nearby_values(page_occurrences, words)
         if progress_callback:
             progress_callback("Finished PDF text extraction.")
         return matches
@@ -451,6 +454,29 @@ def _match_target_codes(
             hits.append(code)
             break
     return hits
+
+
+_NEARBY_PROXIMITY: float = 80.0
+
+
+def _populate_nearby_values(
+    occurrences: List[PdfCodeOccurrence],
+    words: List[WordEntry],
+    proximity: float = _NEARBY_PROXIMITY,
+) -> None:
+    """Populate each occurrence's nearby_values with normalized text of close words."""
+    for occ in occurrences:
+        cx = (occ.x0 + occ.x1) / 2
+        cy = (occ.y0 + occ.y1) / 2
+        nearby: List[str] = []
+        for word in words:
+            wx = (word.x0 + word.x1) / 2
+            wy = (word.y0 + word.y1) / 2
+            if abs(cx - wx) <= proximity and abs(cy - wy) <= proximity:
+                norm = normalize_code(word.text)
+                if norm and norm != occ.code_norm:
+                    nearby.append(norm)
+        occ.nearby_values = tuple(dict.fromkeys(nearby))
 
 
 def _extract_annotation_words(page: fitz.Page) -> List[WordEntry]:

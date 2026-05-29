@@ -65,11 +65,12 @@ def build_match_results(
                 matched_key = variant
                 # Try to find expected_count occurrences for this variant
                 for _ in range(entry.expected_count):
-                    if occ_list:
-                        matched_occurrence = occ_list.pop()
-                        matched_count += 1
-                        usage_counts[variant] += 1
-                        details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
+                    if not occ_list:
+                        break
+                    matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
+                    matched_count += 1
+                    usage_counts[variant] += 1
+                    details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
                 break
 
         matched = matched_count > 0
@@ -107,3 +108,19 @@ def build_match_results(
             )
 
     return rows, notes, details
+
+
+def _pick_occurrence(
+    occ_list: List[PdfCodeOccurrence],
+    specifier_norm: str | None,
+) -> PdfCodeOccurrence:
+    """Remove and return the best occurrence from occ_list.
+
+    When a specifier is given, prefers an occurrence whose nearby_values
+    contains it. Falls back to the last element (existing behaviour).
+    """
+    if specifier_norm:
+        for idx, occ in enumerate(occ_list):
+            if specifier_norm in occ.nearby_values:
+                return occ_list.pop(idx)
+    return occ_list.pop()
