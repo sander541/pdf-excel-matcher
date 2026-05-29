@@ -88,6 +88,7 @@ def extract_pdf_occurrences(
                 )
                 for entry in words_raw
             ]
+            words.extend(_extract_annotation_words(page))
             if enable_ocr:
                 for zoom_index, zoom_level in enumerate(zoom_levels):
                     if _OCR_WARNING:
@@ -450,6 +451,32 @@ def _match_target_codes(
             hits.append(code)
             break
     return hits
+
+
+def _extract_annotation_words(page: fitz.Page) -> List[WordEntry]:
+    """Extract words from PDF annotation /Contents fields."""
+    words: List[WordEntry] = []
+    block_base = 90000
+    for idx, annot in enumerate(page.annots()):
+        content = annot.info.get("content", "").strip()
+        if not content:
+            continue
+        rect = annot.rect
+        for word_idx, token in enumerate(content.split()):
+            words.append(
+                WordEntry(
+                    x0=rect.x0,
+                    y0=rect.y0,
+                    x1=rect.x1,
+                    y1=rect.y1,
+                    text=token,
+                    block=block_base + idx,
+                    line=0,
+                    word=word_idx,
+                    source="annotation",
+                )
+            )
+    return words
 
 
 def _collect_vector_label_rects(page: fitz.Page) -> List[fitz.Rect]:
