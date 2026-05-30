@@ -38,6 +38,7 @@ TOOLTIPS: dict[str, str] = {
     "annotated_pdfs": "Highlighted copies\nEnable to save annotated PDF copies for visual review.\nOtherwise only matching report is created for review.",
     "code_column": "Code column\nExcel column letter(s) that store the codes (e.g., C or AA).",
     "count_column": "Count column\nOptional: Excel column letter with expected occurrence counts (e.g., D).\nIf provided, the tool finds N occurrences per code instead of just 1.",
+    "specifier_column": "Specifier column\nOptional: Excel column letter whose value appears near the code in the PDF (e.g., A for room/door numbers).\nUsed to assign the correct PDF location when the same code appears multiple times.",
     "header_row": "Header row\nRow number that contains the column titles; data starts on the next row.",
     "row_limit": "Row ceiling\nEnable if you want to scan only the first N Excel rows.",
     "max_row": "Max row\nHighest Excel row inspected whenever 'Limit rows' is enabled.",
@@ -178,6 +179,7 @@ class OptionsSection:
     layout: QHBoxLayout
     code_column_edit: QLineEdit
     count_column_edit: QLineEdit
+    specifier_column_edit: QLineEdit
     header_row_edit: QLineEdit
     limit_rows_check: QCheckBox
     max_row_spin: QSpinBox
@@ -336,6 +338,20 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     count_layout.addWidget(HintLabel(tooltip_text("count_column")))
     count_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 
+    specifier_widget = QWidget()
+    specifier_layout = QHBoxLayout(specifier_widget)
+    specifier_layout.setContentsMargins(0, 0, 0, 0)
+    specifier_layout.setSpacing(6)
+    specifier_layout.addWidget(QLabel("Specifier column:"))
+    specifier_column_edit = QLineEdit()
+    specifier_column_edit.setFixedWidth(70)
+    specifier_column_edit.setPlaceholderText("(optional)")
+    specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
+    specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
+    specifier_layout.addWidget(specifier_column_edit)
+    specifier_layout.addWidget(HintLabel(tooltip_text("specifier_column")))
+    specifier_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+
     header_widget = QWidget()
     header_layout = QHBoxLayout(header_widget)
     header_layout.setContentsMargins(0, 0, 0, 0)
@@ -372,6 +388,8 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     row.addWidget(code_widget)
     row.addSpacing(10)
     row.addWidget(count_widget)
+    row.addSpacing(10)
+    row.addWidget(specifier_widget)
     row.addSpacing(16)
     row.addWidget(header_widget)
     row.addSpacing(16)
@@ -382,6 +400,7 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
         layout=row,
         code_column_edit=code_column_edit,
         count_column_edit=count_column_edit,
+        specifier_column_edit=specifier_column_edit,
         header_row_edit=header_row_edit,
         limit_rows_check=limit_rows_check,
         max_row_spin=max_row_spin,

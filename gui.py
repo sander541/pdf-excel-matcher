@@ -110,6 +110,7 @@ class AnnotatorWindow(QWidget):
         options = build_options_section(self._toggle_limit_rows)
         self.code_column_edit = options.code_column_edit
         self.count_column_edit = options.count_column_edit
+        self.specifier_column_edit = options.specifier_column_edit
         self.header_row_edit = options.header_row_edit
         self.limit_rows_check = options.limit_rows_check
         self.max_row_spin = options.max_row_spin
@@ -322,6 +323,15 @@ class AnnotatorWindow(QWidget):
             )
             return None
 
+        specifier_column = self.specifier_column_edit.text().strip().upper()
+        if specifier_column and not is_valid_code_column(specifier_column):
+            QMessageBox.warning(
+                self,
+                "Specifier Column",
+                "Specifier column must be Excel letters such as A or AA, or leave empty.",
+            )
+            return None
+
         header_text = self.header_row_edit.text().strip()
         if not header_text:
             QMessageBox.warning(self, "Header Row", "Enter the header row number.")
@@ -360,6 +370,7 @@ class AnnotatorWindow(QWidget):
             annotated_dir=annotated_dir,
             code_column=code_column,
             count_column=count_column or None,
+            specifier_column=specifier_column or None,
             header_row=header_row,
             max_row=max_row,
             max_word_span=self.word_span_spin.value(),
