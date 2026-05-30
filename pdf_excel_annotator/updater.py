@@ -17,7 +17,7 @@ from .version import __version__
 
 logger = logging.getLogger(__name__)
 
-GITHUB_REPO = "your-username/pdf-excel-annotator"  # Update this with actual repo
+GITHUB_REPO = "sander541/pdf-excel-matcher"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
@@ -56,17 +56,24 @@ def get_download_url_for_platform(release: dict) -> Optional[str]:
     """
     Extract download URL for the current platform from release assets.
 
-    Looks for .exe file on Windows, .dmg on macOS, etc.
+    Windows  → first .exe asset
+    macOS    → first .dmg asset, falling back to .zip
+    Linux    → first .AppImage asset, falling back to .tar.gz
     """
     assets = release.get("assets", [])
 
     if sys.platform == "win32":
-        # Look for .exe file
+        suffixes = (".exe",)
+    elif sys.platform == "darwin":
+        suffixes = (".dmg", ".zip")
+    else:
+        suffixes = (".AppImage", ".tar.gz")
+
+    for suffix in suffixes:
         for asset in assets:
-            if asset["name"].endswith(".exe"):
+            if asset["name"].endswith(suffix):
                 return asset["browser_download_url"]
 
-    # Add other platforms as needed
     return None
 
 
@@ -178,14 +185,17 @@ def perform_update(update_info: dict, current_exe_path: Path) -> bool:
     """
     download_url = update_info["url"]
 
-    # Download to temp file
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_exe = Path(temp_dir) / "pdf_annotator_update.exe"
+    # Derive file suffix from the asset URL so the temp file has the right name/format
+    # on every platform (e.g. .exe on Windows, .dmg on macOS, .AppImage on Linux).
+    suffix = Path(download_url.split("?")[0]).suffix or ".bin"
 
-        if not download_file(download_url, temp_exe):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_asset = Path(temp_dir) / f"pdf_annotator_update{suffix}"
+
+        if not download_file(download_url, temp_asset):
             return False
 
-        if not replace_executable(temp_exe, current_exe_path):
+        if not replace_executable(temp_asset, current_exe_path):
             return False
 
     return True
