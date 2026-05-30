@@ -181,13 +181,26 @@ def perform_update(update_info: dict, current_exe_path: Path) -> bool:
     """
     Download and install update.
 
+    Auto-install is currently Windows-only: the release asset is a self-contained
+    .exe that can be swapped in-place. On macOS the asset is a .zip and on Linux
+    a .tar.gz — extracting those archives and locating the correct binary inside
+    requires knowledge of the archive layout that may vary between releases.
+    Users on those platforms are directed to the releases page instead.
+
     Returns True if successful, False otherwise.
     """
-    download_url = update_info["url"]
+    if sys.platform != "win32":
+        logger.warning(
+            "Auto-install is not supported on this platform (%s). "
+            "Please download the latest release manually from: "
+            "https://github.com/%s/releases",
+            sys.platform,
+            GITHUB_REPO,
+        )
+        return False
 
-    # Derive file suffix from the asset URL so the temp file has the right name/format
-    # on every platform (e.g. .exe on Windows, .dmg on macOS, .AppImage on Linux).
-    suffix = Path(download_url.split("?")[0]).suffix or ".bin"
+    download_url = update_info["url"]
+    suffix = Path(download_url.split("?")[0]).suffix or ".exe"
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_asset = Path(temp_dir) / f"pdf_annotator_update{suffix}"
