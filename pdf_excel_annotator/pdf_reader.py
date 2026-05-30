@@ -471,11 +471,14 @@ def _populate_nearby_values(
         nearby: List[str] = []
         for word in words:
             wx = (word.x0 + word.x1) / 2
+            if abs(cx - wx) > proximity:
+                continue
             wy = (word.y0 + word.y1) / 2
-            if abs(cx - wx) <= proximity and abs(cy - wy) <= proximity:
-                norm = normalize_code(word.text)
-                if norm and norm != occ.code_norm:
-                    nearby.append(norm)
+            if abs(cy - wy) > proximity:
+                continue
+            norm = normalize_code(word.text)
+            if norm and norm != occ.code_norm:
+                nearby.append(norm)
         occ.nearby_values = tuple(dict.fromkeys(nearby))
 
 
