@@ -37,6 +37,7 @@ TOOLTIPS: dict[str, str] = {
     "output_directory": "Output directory\nThe generated report and any annotated PDFs are saved inside this folder.",
     "annotated_pdfs": "Highlighted copies\nEnable to save annotated PDF copies for visual review.\nOtherwise only matching report is created for review.",
     "code_column": "Code column\nExcel column letter(s) that store the codes (e.g., C or AA).",
+    "count_column": "Count column\nOptional: Excel column letter with expected occurrence counts (e.g., D).\nIf provided, the tool finds N occurrences per code instead of just 1.",
     "header_row": "Header row\nRow number that contains the column titles; data starts on the next row.",
     "row_limit": "Row ceiling\nEnable if you want to scan only the first N Excel rows.",
     "max_row": "Max row\nHighest Excel row inspected whenever 'Limit rows' is enabled.",
@@ -176,6 +177,7 @@ class FilesSection:
 class OptionsSection:
     layout: QHBoxLayout
     code_column_edit: QLineEdit
+    count_column_edit: QLineEdit
     header_row_edit: QLineEdit
     limit_rows_check: QCheckBox
     max_row_spin: QSpinBox
@@ -320,6 +322,20 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     code_layout.addWidget(HintLabel(tooltip_text("code_column")))
     code_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 
+    count_widget = QWidget()
+    count_layout = QHBoxLayout(count_widget)
+    count_layout.setContentsMargins(0, 0, 0, 0)
+    count_layout.setSpacing(6)
+    count_layout.addWidget(QLabel("Count column:"))
+    count_column_edit = QLineEdit()
+    count_column_edit.setFixedWidth(70)
+    count_column_edit.setPlaceholderText("(optional)")
+    count_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
+    count_column_edit.setToolTip(tooltip_text("count_column"))
+    count_layout.addWidget(count_column_edit)
+    count_layout.addWidget(HintLabel(tooltip_text("count_column")))
+    count_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+
     header_widget = QWidget()
     header_layout = QHBoxLayout(header_widget)
     header_layout.setContentsMargins(0, 0, 0, 0)
@@ -354,6 +370,8 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     limit_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 
     row.addWidget(code_widget)
+    row.addSpacing(10)
+    row.addWidget(count_widget)
     row.addSpacing(16)
     row.addWidget(header_widget)
     row.addSpacing(16)
@@ -363,6 +381,7 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     return OptionsSection(
         layout=row,
         code_column_edit=code_column_edit,
+        count_column_edit=count_column_edit,
         header_row_edit=header_row_edit,
         limit_rows_check=limit_rows_check,
         max_row_spin=max_row_spin,

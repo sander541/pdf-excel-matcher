@@ -19,6 +19,8 @@ class MatchRow:
     code: str
     matched: bool
     detection_source: str | None = None
+    expected_count: int = 1  # From count column
+    actual_count: int = 0    # How many actually found
 
 
 @dataclass
@@ -49,29 +51,44 @@ def build_match_results(
     usage_counts: Counter[str] = Counter()
 
     for entry in excel_entries:
-        excel_counts[entry.code_norm] += 1
+        excel_counts[entry.code_norm] += entry.expected_count
         display_map.setdefault(entry.code_norm, entry.code_raw)
         variants = generate_code_variants(entry.code_norm) or [entry.code_norm]
+
+        # Try to match expected_count occurrences
+        matched_count = 0
         matched_key = None
-        matched_occurrence: PdfCodeOccurrence | None = None
+
+        first_source: str | None = None
         for variant in variants:
             occ_list = available_occurrences.get(variant)
             if occ_list:
-                matched_occurrence = occ_list.pop()
                 matched_key = variant
-                usage_counts[variant] += 1
+                # Try to find expected_count occurrences for this variant
+                for _ in range(entry.expected_count):
+                    if occ_list:
+                        matched_occurrence = occ_list.pop()
+                        if first_source is None:
+                            first_source = matched_occurrence.source
+                        matched_count += 1
+                        usage_counts[variant] += 1
+                        details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
                 break
-        matched = matched_key is not None
+
+        matched = matched_count > 0
         if not matched:
-            unmatched_counts[entry.code_norm] += 1
-        elif matched_occurrence:
-            details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
+            unmatched_counts[entry.code_norm] += entry.expected_count
+        elif matched_count < entry.expected_count:
+            unmatched_counts[entry.code_norm] += (entry.expected_count - matched_count)
+
         rows.append(
             MatchRow(
                 excel_row=entry.excel_row,
                 code=entry.code_raw,
                 matched=matched,
-                detection_source=matched_occurrence.source if matched_occurrence else None,
+                detection_source=first_source,
+                expected_count=entry.expected_count,
+                actual_count=matched_count,
             )
         )
 

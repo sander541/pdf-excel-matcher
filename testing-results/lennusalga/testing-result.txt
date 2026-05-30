@@ -1,0 +1,15 @@
+Testing Summary — Lennusalga
+
+Run configuration
+- Excel code column: B
+- Header row: 1
+- Matching mode: text-only (OCR disabled)
+
+Findings (from report notes)
+- su-16 matched 0 of 1 expected entries (not found on plan).
+- vu-3 matched 0 of 1 expected entries (not found on plan).
+
+Outcome
+- Annotated PDFs reviewed in Google Chrome, Microsoft Edge, Safari,
+  Adobe Acrobat Reader, and Preview (macOS).
+- Otherwise, everything works as expected with text-only matching.

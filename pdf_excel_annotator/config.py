@@ -20,6 +20,7 @@ class PipelineOptions:
     ocr_angles: List[int] = field(default_factory=lambda: [0, 90, 180, 270])
     enable_ocr: bool = False
     enable_vector_ocr: bool = False
+    count_column: Optional[str] = None  # Column with expected occurrence counts (e.g., "D")
 
 
 @dataclass

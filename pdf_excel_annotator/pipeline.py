@@ -39,6 +39,7 @@ def run_pipeline(
         options.code_column,
         options.header_row,
         max_row=options.max_row,
+        count_column=options.count_column,
     )
     if not excel_entries:
         message = "No codes found in the Excel workbook."
@@ -88,7 +89,7 @@ def run_pipeline(
     annotated_paths: Dict[str, Path] = {}
     if options.annotated_dir:
         if details:
-            annotated_paths = annotate_matches(details, options.annotated_dir)
+            annotated_paths = annotate_matches(details, options.annotated_dir, count_column=options.count_column)
             for original, annotated in annotated_paths.items():
                 emit(f"Annotated PDF saved: {annotated} (from {original})")
         else:

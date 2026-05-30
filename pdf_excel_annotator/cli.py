@@ -32,6 +32,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Excel column letter that stores codes",
     )
     parser.add_argument(
+        "--count-column",
+        default=None,
+        help="Optional Excel column letter with expected occurrence counts (e.g., D). If provided, the tool will find N occurrences per row.",
+    )
+    parser.add_argument(
         "--header-row",
         type=int,
         required=True,
@@ -86,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("header-row must be >= 1")
         if not is_valid_code_column(args.code_column):
             raise ValueError("code-column must be Excel letters, e.g., C or AA")
+        if args.count_column and not is_valid_code_column(args.count_column):
+            raise ValueError("count-column must be Excel letters, e.g., D or AA")
         if args.max_word_span < 1:
             raise ValueError("max-word-span must be >= 1")
         max_row = args.max_row
@@ -106,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.annotated_dir
             else None,
             code_column=args.code_column,
+            count_column=args.count_column,
             header_row=args.header_row,
             max_row=max_row,
             max_word_span=args.max_word_span,

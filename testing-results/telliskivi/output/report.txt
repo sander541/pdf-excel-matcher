@@ -1,0 +1,62 @@
+PDF ↔ Excel Match Report
+========================
+Generated: 2026-01-15T00:44:10
+PDF: /Users/Sander-Sven/Documents/projects/pdf-excel-annotator/testing-results/telliskivi/input/Telliskivi.pdf
+Excel: /Users/Sander-Sven/Documents/projects/pdf-excel-annotator/testing-results/telliskivi/input/Telliskivi.xlsx
+Code column: C
+Header row: 2
+Max row: 33
+
++-----------+---------------+---------+--------+
+| Excel Row | Code          | Matched | Source |
++===========+===============+=========+========+
+| 3         | VMPU-4        | No      | -      |
+| 4         | VMPU-1.1      | No      | -      |
+| 5         | VMPU-1.2      | No      | -      |
+| 6         | VMPU-2        | No      | -      |
+| 7         | VMPU-3.1      | Yes     | text   |
+| 8         | VMPU-3.2      | Yes     | text   |
+| 9         | VMPU-3.3      | No      | -      |
+| 10        | VMPU-3.4      | No      | -      |
+| 11        | VMPU-3.5      | No      | -      |
+| 12        | VMPU-5        | No      | -      |
+| 13        | SMU-1         | No      | -      |
+| 14        | ?             | No      | -      |
+| 15        | VMPU-KF1.01-1 | No      | -      |
+| 16        | VMPU-KF1.01-2 | No      | -      |
+| 17        | SMU-1         | No      | -      |
+| 18        | SMU-2         | No      | -      |
+| 19        | SMU-3         | No      | -      |
+| 20        | VMU-5         | No      | -      |
+| 21        | VMU-6         | No      | -      |
+| 22        | VMU-7         | No      | -      |
+| 23        | SMPU-1        | Yes     | text   |
+| 24        | VMU-4         | Yes     | text   |
+| 26        | SMPU-1        | Yes     | text   |
+| 27        | VMU-4         | Yes     | text   |
+| 28        | SMPU-1        | Yes     | text   |
+| 29        | VMU-4         | Yes     | text   |
+| 32        | SMPU-1        | No      | -      |
+| 33        | VMU-4         | No      | -      |
++-----------+---------------+---------+--------+
+
+Notes:
+  • Code `VMPU-4` matched 0 of 1 expected entries.
+  • Code `VMPU-1.1` matched 0 of 1 expected entries.
+  • Code `VMPU-1.2` matched 0 of 1 expected entries.
+  • Code `VMPU-2` matched 0 of 1 expected entries.
+  • Code `VMPU-3.3` matched 0 of 1 expected entries.
+  • Code `VMPU-3.4` matched 0 of 1 expected entries.
+  • Code `VMPU-3.5` matched 0 of 1 expected entries.
+  • Code `VMPU-5` matched 0 of 1 expected entries.
+  • Code `SMU-1` matched 0 of 2 expected entries.
+  • Code `?` matched 0 of 1 expected entries.
+  • Code `VMPU-KF1.01-1` matched 0 of 1 expected entries.
+  • Code `VMPU-KF1.01-2` matched 0 of 1 expected entries.
+  • Code `SMU-2` matched 0 of 1 expected entries.
+  • Code `SMU-3` matched 0 of 1 expected entries.
+  • Code `VMU-5` matched 0 of 1 expected entries.
+  • Code `VMU-6` matched 0 of 1 expected entries.
+  • Code `VMU-7` matched 0 of 1 expected entries.
+  • Code `SMPU-1` matched 3 of 4 expected entries.
+  • Code `VMU-4` matched 3 of 4 expected entries.

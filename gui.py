@@ -30,6 +30,8 @@ from pdf_excel_annotator.gui_helpers import (
     build_log_section,
     tooltip_text,
 )
+from pdf_excel_annotator.updater import check_for_updates, perform_update
+from pdf_excel_annotator.version import __version__
 
 
 class AnnotatorWorker(QThread):
@@ -59,16 +61,32 @@ class AnnotatorWorker(QThread):
             self.finished.emit(False, str(exc))
 
 
+class UpdateCheckerWorker(QThread):
+    update_available = Signal(dict)  # Emits update info if available
+    check_complete = Signal()
+
+    def run(self) -> None:  # pragma: no cover - update checker
+        try:
+            update_info = check_for_updates()
+            if update_info:
+                self.update_available.emit(update_info)
+        except Exception:
+            pass  # Silently fail - don't disrupt user workflow
+        finally:
+            self.check_complete.emit()
+
+
 class AnnotatorWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("PDF ↔ Excel Annotator")
+        self.setWindowTitle(f"PDF ↔ Excel Annotator v{__version__}")
         self.worker: AnnotatorWorker | None = None
         app = QApplication.instance()
         self._orig_style = app.style().objectName() if app else ""
         self._orig_palette = app.palette() if app else None
         self._orig_stylesheet = app.styleSheet() if app else ""
         self._build_ui()
+        self._check_for_updates_async()
 
     def _build_ui(self) -> None:
         main_layout = QVBoxLayout(self)
@@ -91,6 +109,7 @@ class AnnotatorWindow(QWidget):
 
         options = build_options_section(self._toggle_limit_rows)
         self.code_column_edit = options.code_column_edit
+        self.count_column_edit = options.count_column_edit
         self.header_row_edit = options.header_row_edit
         self.limit_rows_check = options.limit_rows_check
         self.max_row_spin = options.max_row_spin
@@ -293,6 +312,16 @@ class AnnotatorWindow(QWidget):
                 "Code column must be Excel letters such as C or AA.",
             )
             return None
+
+        count_column = self.count_column_edit.text().strip().upper()
+        if count_column and not is_valid_code_column(count_column):
+            QMessageBox.warning(
+                self,
+                "Count Column",
+                "Count column must be Excel letters such as D or AA, or leave empty.",
+            )
+            return None
+
         header_text = self.header_row_edit.text().strip()
         if not header_text:
             QMessageBox.warning(self, "Header Row", "Enter the header row number.")
@@ -330,6 +359,7 @@ class AnnotatorWindow(QWidget):
             output_path=output_path,
             annotated_dir=annotated_dir,
             code_column=code_column,
+            count_column=count_column or None,
             header_row=header_row,
             max_row=max_row,
             max_word_span=self.word_span_spin.value(),
@@ -392,6 +422,79 @@ class AnnotatorWindow(QWidget):
         self.max_row_spin.setMinimum(min_value)
         if self.max_row_spin.value() < min_value:
             self.max_row_spin.setValue(min_value)
+
+    def _check_for_updates_async(self) -> None:
+        """Check for updates in background without blocking UI."""
+        self.update_checker = UpdateCheckerWorker()
+        self.update_checker.update_available.connect(self._on_update_available)
+        self.update_checker.start()
+
+    def _on_update_available(self, update_info: dict) -> None:
+        """Prompt user when update is available."""
+        import webbrowser
+        from pdf_excel_annotator.updater import GITHUB_REPO
+
+        new_version = update_info.get("version", "unknown")
+
+        if sys.platform != "win32":
+            # Auto-install is Windows-only; direct other platforms to the releases page.
+            reply = QMessageBox.question(
+                self,
+                "Update Available",
+                f"A new version ({new_version}) is available.\n\n"
+                "Auto-install is only supported on Windows.\n"
+                "Would you like to open the releases page to download it manually?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if reply == QMessageBox.Yes:
+                webbrowser.open(f"https://github.com/{GITHUB_REPO}/releases/latest")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Update Available",
+            f"A new version ({new_version}) is available.\n\nWould you like to update now?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if reply == QMessageBox.Yes:
+            self._perform_update(update_info)
+
+    def _perform_update(self, update_info: dict) -> None:
+        """Download and install the update."""
+        try:
+            # Get path to current executable
+            if getattr(sys, "frozen", False):
+                # Running as PyInstaller bundle
+                current_exe = Path(sys.executable)
+            else:
+                # Running as script - this shouldn't happen in production
+                QMessageBox.warning(
+                    self,
+                    "Update Not Available",
+                    "Update is only available for packaged releases.",
+                )
+                return
+
+            # Perform the update
+            if perform_update(update_info, current_exe):
+                QMessageBox.information(
+                    self,
+                    "Update Installed",
+                    "Update has been installed. The application will restart.",
+                )
+                from pdf_excel_annotator.updater import restart_application
+
+                restart_application(current_exe)
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Update Failed",
+                    "Failed to install update. Please try again later.",
+                )
+        except Exception as exc:
+            QMessageBox.critical(self, "Update Error", f"Error during update: {exc}")
 
 def main() -> int:  # pragma: no cover - GUI launcher
     app = QApplication(sys.argv)
