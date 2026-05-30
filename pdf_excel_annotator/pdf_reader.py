@@ -471,6 +471,9 @@ def _populate_nearby_values(
         nearby: List[str] = []
         for word in words:
             wx = (word.x0 + word.x1) / 2
+            # Skip x-axis first — cheaper than computing y and normalising the token.
+            # Note: all words are still visited (no index pre-filtering), so this is
+            # a constant-factor win, not an asymptotic improvement.
             if abs(cx - wx) > proximity:
                 continue
             wy = (word.y0 + word.y1) / 2

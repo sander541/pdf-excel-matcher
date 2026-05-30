@@ -42,6 +42,9 @@ def load_excel_codes(
 
         # Read all needed rows in a single sequential scan — avoids the per-cell
         # XML re-parse that makes random sheet.cell() access O(rows²) in read-only mode.
+        # Trade-off: the entire range is materialised into memory at once. For typical
+        # workbooks (hundreds of rows, tens of columns) this is negligible. For very
+        # large sheets with max_row=None, consider passing an explicit max_row cap.
         all_rows = list(
             sheet.iter_rows(min_row=header_row, max_row=final_row, values_only=True)
         )
