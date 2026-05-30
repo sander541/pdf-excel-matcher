@@ -88,6 +88,7 @@ def extract_pdf_occurrences(
                 )
                 for entry in words_raw
             ]
+            words.extend(_extract_annotation_words(page))
             if enable_ocr:
                 for zoom_index, zoom_level in enumerate(zoom_levels):
                     if _OCR_WARNING:
@@ -450,6 +451,55 @@ def _match_target_codes(
             hits.append(code)
             break
     return hits
+
+
+# Annotation types whose /Contents field may carry user-typed codes.
+# Highlights, underlines, ink, links, etc. are excluded — they rarely carry meaningful text.
+_ANNOT_CODE_TYPES: frozenset[int] = frozenset({
+    fitz.PDF_ANNOT_SQUARE,
+    fitz.PDF_ANNOT_CIRCLE,
+    fitz.PDF_ANNOT_FREE_TEXT,
+    fitz.PDF_ANNOT_TEXT,
+    fitz.PDF_ANNOT_STAMP,
+    fitz.PDF_ANNOT_WIDGET,
+})
+
+# Block index offset for words extracted from annotations.
+# Must stay above any block index produced by page.get_text("words"); in practice
+# PyMuPDF never returns block numbers near this magnitude for real text blocks.
+_ANNOTATION_BLOCK_BASE: int = 90_000
+
+
+def _extract_annotation_words(page: fitz.Page) -> List[WordEntry]:
+    """Extract words from PDF annotation /Contents fields.
+
+    Only considers annotation types that are likely to carry user-typed codes
+    (squares, circles, free text, stamps, widgets). Highlights, underlines,
+    ink annotations, and links are skipped.
+    """
+    words: List[WordEntry] = []
+    for idx, annot in enumerate(page.annots()):
+        if annot.type[0] not in _ANNOT_CODE_TYPES:
+            continue
+        content = annot.info.get("content", "").strip()
+        if not content:
+            continue
+        rect = annot.rect
+        for word_idx, token in enumerate(content.split()):
+            words.append(
+                WordEntry(
+                    x0=rect.x0,
+                    y0=rect.y0,
+                    x1=rect.x1,
+                    y1=rect.y1,
+                    text=token,
+                    block=_ANNOTATION_BLOCK_BASE + idx,
+                    line=0,
+                    word=word_idx,
+                    source="annotation",
+                )
+            )
+    return words
 
 
 def _collect_vector_label_rects(page: fitz.Page) -> List[fitz.Rect]:
