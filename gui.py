@@ -110,7 +110,6 @@ class AnnotatorWindow(QWidget):
         options = build_options_section(self._toggle_limit_rows)
         self.code_column_edit = options.code_column_edit
         self.count_column_edit = options.count_column_edit
-        self.specifier_column_edit = options.specifier_column_edit
         self.header_row_edit = options.header_row_edit
         self.limit_rows_check = options.limit_rows_check
         self.max_row_spin = options.max_row_spin
@@ -125,6 +124,8 @@ class AnnotatorWindow(QWidget):
         self.enable_ocr_check = advanced.enable_ocr_check
         self.enable_vector_check = advanced.enable_vector_check
         self.dark_theme_check = advanced.dark_theme_check
+        self.specifier_column_edit = advanced.specifier_column_edit
+        self.specifier_radius_spin = advanced.specifier_radius_spin
 
         log_section = build_log_section()
         self.log = log_section.text_edit
@@ -371,6 +372,7 @@ class AnnotatorWindow(QWidget):
             code_column=code_column,
             count_column=count_column or None,
             specifier_column=specifier_column or None,
+            specifier_radius=float(self.specifier_radius_spin.value()),
             header_row=header_row,
             max_row=max_row,
             max_word_span=self.word_span_spin.value(),
