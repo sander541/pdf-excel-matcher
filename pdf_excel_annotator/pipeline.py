@@ -68,6 +68,7 @@ def run_pipeline(
             ocr_angles=options.ocr_angles,
             enable_ocr=options.enable_ocr,
             enable_vector_ocr=options.enable_vector_ocr,
+            specifier_radius=options.specifier_radius,
             progress_callback=_progress,
         )
         for code, occs in occurrences.items():

@@ -51,6 +51,7 @@ def extract_pdf_occurrences(
     ocr_angles: Sequence[int] | None = None,
     enable_ocr: bool = False,
     enable_vector_ocr: bool = False,
+    specifier_radius: float = 80.0,
     progress_callback: Callable[[str], None] | None = None,
 ) -> Dict[str, List[PdfCodeOccurrence]]:
     """
@@ -139,7 +140,7 @@ def extract_pdf_occurrences(
                         )
                         page_occurrences.append(occ)
                         matches.setdefault(code, []).append(occ)
-            _populate_nearby_values(page_occurrences, words)
+            _populate_nearby_values(page_occurrences, words, proximity=specifier_radius)
         if progress_callback:
             progress_callback("Finished PDF text extraction.")
         return matches

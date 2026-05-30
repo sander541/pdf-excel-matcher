@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
@@ -9,6 +10,8 @@ from typing import Dict, List, Sequence, Tuple
 from .excel_reader import ExcelCodeEntry
 from .pdf_reader import PdfCodeOccurrence
 from .utils import generate_code_variants
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -123,4 +126,9 @@ def _pick_occurrence(
         for idx, occ in enumerate(occ_list):
             if specifier_norm in occ.nearby_values:
                 return occ_list.pop(idx)
+        logger.debug(
+            "specifier %r not found near any occurrence of %r; falling back to last occurrence",
+            specifier_norm,
+            occ_list[-1].code_norm,
+        )
     return occ_list.pop()
