@@ -33,8 +33,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\pdf-excel-annotator.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\pdf-excel-annotator\pdf-excel-annotator.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\pdf-excel-annotator\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\PDF Excel Annotator"; Filename: "{app}\pdf-excel-annotator.exe"
