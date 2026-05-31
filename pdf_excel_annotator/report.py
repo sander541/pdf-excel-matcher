@@ -76,7 +76,7 @@ def write_report(
             for row in rows
         ]
     if not table_rows:
-        table_rows.append(["N/A", "N/A", "N/A", "N/A"])
+        table_rows.append(["N/A"] * len(headers))
 
     widths = [
         max(len(headers[idx]), *(len(r[idx]) for r in table_rows))

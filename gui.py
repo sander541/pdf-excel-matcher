@@ -444,7 +444,26 @@ class AnnotatorWindow(QWidget):
 
     def _on_update_available(self, update_info: dict) -> None:
         """Prompt user when update is available."""
+        import webbrowser
+        from pdf_excel_annotator.updater import GITHUB_REPO
+
         new_version = update_info.get("version", "unknown")
+
+        if sys.platform != "win32":
+            # Auto-install is Windows-only; direct other platforms to the releases page.
+            reply = QMessageBox.question(
+                self,
+                "Update Available",
+                f"A new version ({new_version}) is available.\n\n"
+                "Auto-install is only supported on Windows.\n"
+                "Would you like to open the releases page to download it manually?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if reply == QMessageBox.Yes:
+                webbrowser.open(f"https://github.com/{GITHUB_REPO}/releases/latest")
+            return
+
         reply = QMessageBox.question(
             self,
             "Update Available",
@@ -452,7 +471,6 @@ class AnnotatorWindow(QWidget):
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
         )
-
         if reply == QMessageBox.Yes:
             self._perform_update(update_info)
 

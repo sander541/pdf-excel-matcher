@@ -17,7 +17,7 @@ from .version import __version__
 
 logger = logging.getLogger(__name__)
 
-GITHUB_REPO = "your-username/pdf-excel-annotator"  # Update this with actual repo
+GITHUB_REPO = "sander541/pdf-excel-matcher"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
@@ -56,17 +56,24 @@ def get_download_url_for_platform(release: dict) -> Optional[str]:
     """
     Extract download URL for the current platform from release assets.
 
-    Looks for .exe file on Windows, .dmg on macOS, etc.
+    Windows  → first .exe asset
+    macOS    → first .dmg asset, falling back to .zip
+    Linux    → first .AppImage asset, falling back to .tar.gz
     """
     assets = release.get("assets", [])
 
     if sys.platform == "win32":
-        # Look for .exe file
+        suffixes = (".exe",)
+    elif sys.platform == "darwin":
+        suffixes = (".dmg", ".zip")
+    else:
+        suffixes = (".AppImage", ".tar.gz")
+
+    for suffix in suffixes:
         for asset in assets:
-            if asset["name"].endswith(".exe"):
+            if asset["name"].endswith(suffix):
                 return asset["browser_download_url"]
 
-    # Add other platforms as needed
     return None
 
 
@@ -174,18 +181,34 @@ def perform_update(update_info: dict, current_exe_path: Path) -> bool:
     """
     Download and install update.
 
+    Auto-install is currently Windows-only: the release asset is a self-contained
+    .exe that can be swapped in-place. On macOS the asset is a .zip and on Linux
+    a .tar.gz — extracting those archives and locating the correct binary inside
+    requires knowledge of the archive layout that may vary between releases.
+    Users on those platforms are directed to the releases page instead.
+
     Returns True if successful, False otherwise.
     """
+    if sys.platform != "win32":
+        logger.warning(
+            "Auto-install is not supported on this platform (%s). "
+            "Please download the latest release manually from: "
+            "https://github.com/%s/releases",
+            sys.platform,
+            GITHUB_REPO,
+        )
+        return False
+
     download_url = update_info["url"]
+    suffix = Path(download_url.split("?")[0]).suffix or ".exe"
 
-    # Download to temp file
     with tempfile.TemporaryDirectory() as temp_dir:
-        temp_exe = Path(temp_dir) / "pdf_annotator_update.exe"
+        temp_asset = Path(temp_dir) / f"pdf_annotator_update{suffix}"
 
-        if not download_file(download_url, temp_exe):
+        if not download_file(download_url, temp_asset):
             return False
 
-        if not replace_executable(temp_exe, current_exe_path):
+        if not replace_executable(temp_asset, current_exe_path):
             return False
 
     return True

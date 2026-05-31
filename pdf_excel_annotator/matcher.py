@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
@@ -9,6 +10,8 @@ from typing import Dict, List, Sequence, Tuple
 from .excel_reader import ExcelCodeEntry
 from .pdf_reader import PdfCodeOccurrence
 from .utils import generate_code_variants
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -59,6 +62,7 @@ def build_match_results(
         matched_count = 0
         matched_key = None
 
+        first_source: str | None = None
         for variant in variants:
             occ_list = available_occurrences.get(variant)
             if occ_list:
@@ -68,6 +72,8 @@ def build_match_results(
                     if not occ_list:
                         break
                     matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
+                    if first_source is None:
+                        first_source = matched_occurrence.source
                     matched_count += 1
                     usage_counts[variant] += 1
                     details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
@@ -84,7 +90,7 @@ def build_match_results(
                 excel_row=entry.excel_row,
                 code=entry.code_raw,
                 matched=matched,
-                detection_source=None,  # First match source when multiple
+                detection_source=first_source,
                 expected_count=entry.expected_count,
                 actual_count=matched_count,
             )
@@ -123,4 +129,9 @@ def _pick_occurrence(
         for idx, occ in enumerate(occ_list):
             if specifier_norm in occ.nearby_values:
                 return occ_list.pop(idx)
+        logger.debug(
+            "specifier %r not found near any occurrence of %r; falling back to last occurrence",
+            specifier_norm,
+            occ_list[-1].code_norm,
+        )
     return occ_list.pop()
