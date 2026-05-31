@@ -16,6 +16,8 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     name: Create and Tag Release
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
