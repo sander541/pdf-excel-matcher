@@ -21,6 +21,8 @@ class PipelineOptions:
     enable_ocr: bool = False
     enable_vector_ocr: bool = False
     count_column: Optional[str] = None  # Column with expected occurrence counts (e.g., "D")
+    specifier_column: Optional[str] = None  # Column whose value disambiguates duplicate codes
+    specifier_radius: float = 80.0  # Search radius (pt) for nearby specifier values; tune for drawing density
 
 
 @dataclass

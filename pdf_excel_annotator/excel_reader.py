@@ -18,6 +18,7 @@ class ExcelCodeEntry:
     excel_row: int
     row_data: Sequence[Tuple[str, str]]
     expected_count: int = 1  # From count_column, defaults to 1 if not specified
+    specifier_norm: str | None = None  # Normalized value from specifier_column
 
 
 def load_excel_codes(
@@ -26,10 +27,12 @@ def load_excel_codes(
     header_row: int,
     max_row: int | None = None,
     count_column: str | None = None,
+    specifier_column: str | None = None,
 ) -> List[ExcelCodeEntry]:
 
     column_index = column_index_from_string(code_column.upper())
     count_col_index = column_index_from_string(count_column.upper()) if count_column else None
+    specifier_col_index = column_index_from_string(specifier_column.upper()) if specifier_column else None
     workbook = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
         sheet = workbook.active  # single-sheet assumption for now
@@ -79,6 +82,13 @@ def load_excel_codes(
                     except (ValueError, TypeError):
                         expected_count = 1
 
+            specifier_norm: str | None = None
+            if specifier_col_index:
+                spec_cell = sheet.cell(row=row_idx, column=specifier_col_index)
+                if spec_cell.value is not None:
+                    spec_text = str(spec_cell.value).strip()
+                    specifier_norm = normalize_code(spec_text) or None
+
             entries.append(
                 ExcelCodeEntry(
                     code_raw=text,
@@ -86,6 +96,7 @@ def load_excel_codes(
                     excel_row=row_idx,
                     row_data=row_entries,
                     expected_count=expected_count,
+                    specifier_norm=specifier_norm,
                 )
             )
         return entries

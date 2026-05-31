@@ -40,6 +40,7 @@ def run_pipeline(
         options.header_row,
         max_row=options.max_row,
         count_column=options.count_column,
+        specifier_column=options.specifier_column,
     )
     if not excel_entries:
         message = "No codes found in the Excel workbook."
@@ -67,6 +68,7 @@ def run_pipeline(
             ocr_angles=options.ocr_angles,
             enable_ocr=options.enable_ocr,
             enable_vector_ocr=options.enable_vector_ocr,
+            specifier_radius=options.specifier_radius,
             progress_callback=_progress,
         )
         for code, occs in occurrences.items():

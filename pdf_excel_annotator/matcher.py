@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
@@ -9,6 +10,8 @@ from typing import Dict, List, Sequence, Tuple
 from .excel_reader import ExcelCodeEntry
 from .pdf_reader import PdfCodeOccurrence
 from .utils import generate_code_variants
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -66,13 +69,14 @@ def build_match_results(
                 matched_key = variant
                 # Try to find expected_count occurrences for this variant
                 for _ in range(entry.expected_count):
-                    if occ_list:
-                        matched_occurrence = occ_list.pop()
-                        if first_source is None:
-                            first_source = matched_occurrence.source
-                        matched_count += 1
-                        usage_counts[variant] += 1
-                        details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
+                    if not occ_list:
+                        break
+                    matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
+                    if first_source is None:
+                        first_source = matched_occurrence.source
+                    matched_count += 1
+                    usage_counts[variant] += 1
+                    details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
                 break
 
         matched = matched_count > 0
@@ -110,3 +114,24 @@ def build_match_results(
             )
 
     return rows, notes, details
+
+
+def _pick_occurrence(
+    occ_list: List[PdfCodeOccurrence],
+    specifier_norm: str | None,
+) -> PdfCodeOccurrence:
+    """Remove and return the best occurrence from occ_list.
+
+    When a specifier is given, prefers an occurrence whose nearby_values
+    contains it. Falls back to the last element (existing behaviour).
+    """
+    if specifier_norm:
+        for idx, occ in enumerate(occ_list):
+            if specifier_norm in occ.nearby_values:
+                return occ_list.pop(idx)
+        logger.debug(
+            "specifier %r not found near any occurrence of %r; falling back to last occurrence",
+            specifier_norm,
+            occ_list[-1].code_norm,
+        )
+    return occ_list.pop()
