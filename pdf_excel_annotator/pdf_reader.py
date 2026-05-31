@@ -489,13 +489,17 @@ def _populate_nearby_values(
         for word in words:
             # Skip x-axis first — constant-factor win, not asymptotic
             wx = (word.x0 + word.x1) / 2
+            # Skip x-axis first — cheaper than computing y and normalising the token.
+            # Note: all words are still visited (no index pre-filtering), so this is
+            # a constant-factor win, not an asymptotic improvement.
             if abs(cx - wx) > proximity:
                 continue
             wy = (word.y0 + word.y1) / 2
-            if abs(cy - wy) <= proximity:
-                norm = normalize_code(word.text)
-                if norm and norm != occ.code_norm:
-                    nearby.append(norm)
+            if abs(cy - wy) > proximity:
+                continue
+            norm = normalize_code(word.text)
+            if norm and norm != occ.code_norm:
+                nearby.append(norm)
         occ.nearby_values = tuple(dict.fromkeys(nearby))
 
 
