@@ -56,14 +56,14 @@ def get_download_url_for_platform(release: dict) -> Optional[str]:
     """
     Extract download URL for the current platform from release assets.
 
-    Windows  → first -windows.zip asset
+    Windows  → first -setup.exe asset (Inno Setup installer)
     macOS    → first -macos.zip asset
     Linux    → first .tar.gz asset
     """
     assets = release.get("assets", [])
 
     if sys.platform == "win32":
-        suffixes = ("-windows.zip",)
+        suffixes = ("-setup.exe",)
     elif sys.platform == "darwin":
         suffixes = ("-macos.zip",)
     else:
@@ -127,19 +127,17 @@ def replace_executable(new_exe_path: Path, current_exe_path: Path) -> bool:
 
 
 def restart_application(exe_path: Path) -> None:
-    """Restart the application with the new executable."""
-    try:
-        if sys.platform == "win32":
-            # On Windows, use os.startfile or subprocess
-            os.startfile(str(exe_path))
-        else:
-            # On Unix-like systems
-            subprocess.Popen([str(exe_path)])
+    """Exit the current process after an update.
 
-        # Exit current process
+    On Windows the Inno Setup installer re-launches the app automatically,
+    so we just close this instance. On other platforms we attempt to relaunch.
+    """
+    try:
+        if sys.platform != "win32":
+            subprocess.Popen([str(exe_path)])
         sys.exit(0)
     except Exception as exc:
-        logger.error(f"Failed to restart application: {exc}")
+        logger.error("Failed to exit after update: %s", exc)
 
 
 def check_for_updates(
@@ -181,13 +179,11 @@ def perform_update(update_info: dict, current_exe_path: Path) -> bool:
     """
     Download and install update.
 
-    Auto-install is currently Windows-only: the release asset is a self-contained
-    .exe that can be swapped in-place. On macOS the asset is a .zip and on Linux
-    a .tar.gz — extracting those archives and locating the correct binary inside
-    requires knowledge of the archive layout that may vary between releases.
-    Users on those platforms are directed to the releases page instead.
+    Windows: downloads the Inno Setup installer and launches it silently.
+             The installer handles replacing the app; this process exits afterward.
+    macOS / Linux: not supported — user is directed to the releases page.
 
-    Returns True if successful, False otherwise.
+    Returns True if the installer was launched successfully, False otherwise.
     """
     if sys.platform != "win32":
         logger.warning(
@@ -200,15 +196,21 @@ def perform_update(update_info: dict, current_exe_path: Path) -> bool:
         return False
 
     download_url = update_info["url"]
-    suffix = Path(download_url.split("?")[0]).suffix or ".exe"
+    # Use mkdtemp (not TemporaryDirectory) so the file persists after this
+    # function returns — the installer process outlives this Python process.
+    temp_dir = Path(tempfile.mkdtemp(prefix="pdf_annotator_upd_"))
+    temp_installer = temp_dir / "pdf-excel-annotator-setup.exe"
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_asset = Path(temp_dir) / f"pdf_annotator_update{suffix}"
+    if not download_file(download_url, temp_installer):
+        return False
 
-        if not download_file(download_url, temp_asset):
-            return False
-
-        if not replace_executable(temp_asset, current_exe_path):
-            return False
-
-    return True
+    try:
+        logger.info("Launching installer: %s", temp_installer)
+        subprocess.Popen(
+            [str(temp_installer), "/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES"],
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+        return True
+    except Exception as exc:
+        logger.error("Failed to launch installer: %s", exc)
+        return False

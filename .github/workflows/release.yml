@@ -68,7 +68,7 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
-            artifact: pdf-excel-annotator-windows.zip
+            artifact: dist/installer/pdf-excel-annotator-setup.exe
           - os: macos-latest
             name: macOS
             artifact: pdf-excel-annotator-macos.zip
@@ -95,10 +95,14 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller pdf-excel-annotator.spec
 
-      - name: Package (Windows)
+      - name: Install Inno Setup (Windows)
+        if: runner.os == 'Windows'
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path "dist/pdf-excel-annotator/*" -DestinationPath "pdf-excel-annotator-windows.zip"
+        run: iscc "/DVersion=${{ inputs.version }}" pdf-excel-annotator.iss
 
       - name: Package (macOS)
         if: runner.os == 'macOS'

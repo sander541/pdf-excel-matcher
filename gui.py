@@ -494,8 +494,8 @@ class AnnotatorWindow(QWidget):
             if perform_update(update_info, current_exe):
                 QMessageBox.information(
                     self,
-                    "Update Installed",
-                    "Update has been installed. The application will restart.",
+                    "Update Installing",
+                    "The installer is running. The application will now close.",
                 )
                 from pdf_excel_annotator.updater import restart_application
 
