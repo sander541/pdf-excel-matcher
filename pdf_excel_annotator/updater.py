@@ -56,18 +56,18 @@ def get_download_url_for_platform(release: dict) -> Optional[str]:
     """
     Extract download URL for the current platform from release assets.
 
-    Windows  → first .exe asset
-    macOS    → first .dmg asset, falling back to .zip
-    Linux    → first .AppImage asset, falling back to .tar.gz
+    Windows  → first -windows.zip asset
+    macOS    → first -macos.zip asset
+    Linux    → first .tar.gz asset
     """
     assets = release.get("assets", [])
 
     if sys.platform == "win32":
-        suffixes = (".exe",)
+        suffixes = ("-windows.zip",)
     elif sys.platform == "darwin":
-        suffixes = (".dmg", ".zip")
+        suffixes = ("-macos.zip",)
     else:
-        suffixes = (".AppImage", ".tar.gz")
+        suffixes = (".tar.gz",)
 
     for suffix in suffixes:
         for asset in assets:
