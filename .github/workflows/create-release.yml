@@ -61,7 +61,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ inputs.version }}
-          body: ${{ inputs.release_notes || 'Release v' + inputs.version }}
+          body: ${{ inputs.release_notes || format('Release v{0}', inputs.version) }}
           draft: false
           prerelease: false
         env:
