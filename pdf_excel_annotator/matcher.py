@@ -62,6 +62,7 @@ def build_match_results(
         matched_count = 0
         matched_key = None
 
+        first_source: str | None = None
         for variant in variants:
             occ_list = available_occurrences.get(variant)
             if occ_list:
@@ -71,6 +72,8 @@ def build_match_results(
                     if not occ_list:
                         break
                     matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
+                    if first_source is None:
+                        first_source = matched_occurrence.source
                     matched_count += 1
                     usage_counts[variant] += 1
                     details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
@@ -87,7 +90,7 @@ def build_match_results(
                 excel_row=entry.excel_row,
                 code=entry.code_raw,
                 matched=matched,
-                detection_source=None,  # First match source when multiple
+                detection_source=first_source,
                 expected_count=entry.expected_count,
                 actual_count=matched_count,
             )
