@@ -38,6 +38,9 @@ TOOLTIPS: dict[str, str] = {
     "annotated_pdfs": "Highlighted copies\nEnable to save annotated PDF copies for visual review.\nOtherwise only matching report is created for review.",
     "code_column": "Code column\nExcel column letter(s) that store the codes (e.g., C or AA).",
     "count_column": "Count column\nOptional: Excel column letter with expected occurrence counts (e.g., D).\nIf provided, the tool finds N occurrences per code instead of just 1.",
+    "specifier_column": "Specifier column\nOptional: Excel column letter whose value appears near the code in the PDF (e.g., A for room/door numbers).\nUsed to assign the correct PDF location when the same code appears multiple times.",
+    "specifier_radius": "Specifier radius\nSearch radius in PDF points when looking for specifier values near a code (default: 80).\nReduce for dense CAD drawings; increase for large A0 sheets.",
+    "specifier_radius_hint": "Proximity radius\n80 pt ≈ 1.1 inch. Decrease if codes bleed across rooms; increase for large sheets.",
     "header_row": "Header row\nRow number that contains the column titles; data starts on the next row.",
     "row_limit": "Row ceiling\nEnable if you want to scan only the first N Excel rows.",
     "max_row": "Max row\nHighest Excel row inspected whenever 'Limit rows' is enabled.",
@@ -193,6 +196,8 @@ class AdvancedSection:
     enable_ocr_check: QCheckBox
     enable_vector_check: QCheckBox
     dark_theme_check: QCheckBox
+    specifier_column_edit: QLineEdit
+    specifier_radius_spin: QSpinBox
 
 
 @dataclass
@@ -478,6 +483,36 @@ def build_advanced_section() -> AdvancedSection:
     theme_layout.addStretch()
     layout.addWidget(theme_row, 3, 0, 1, 4)
 
+    # Specifier (duplicate-code disambiguation) — placed in Advanced because it's
+    # an edge-case feature; keeping it here prevents the main options bar from overflowing.
+    layout.addWidget(QLabel("Specifier column:"), 4, 0)
+    specifier_column_edit = QLineEdit()
+    specifier_column_edit.setFixedWidth(70)
+    specifier_column_edit.setPlaceholderText("(optional)")
+    specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
+    specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
+    spec_col_row = QWidget()
+    spec_col_layout = QHBoxLayout(spec_col_row)
+    spec_col_layout.setContentsMargins(0, 0, 0, 0)
+    spec_col_layout.setSpacing(4)
+    spec_col_layout.addWidget(specifier_column_edit)
+    spec_col_layout.addWidget(HintLabel(tooltip_text("specifier_column")))
+    layout.addWidget(spec_col_row, 4, 1)
+
+    layout.addWidget(QLabel("Specifier radius (pt):"), 4, 2)
+    specifier_radius_spin = QSpinBox()
+    specifier_radius_spin.setMinimum(10)
+    specifier_radius_spin.setMaximum(500)
+    specifier_radius_spin.setValue(80)
+    specifier_radius_spin.setToolTip(tooltip_text("specifier_radius"))
+    spec_rad_row = QWidget()
+    spec_rad_layout = QHBoxLayout(spec_rad_row)
+    spec_rad_layout.setContentsMargins(0, 0, 0, 0)
+    spec_rad_layout.setSpacing(4)
+    spec_rad_layout.addWidget(specifier_radius_spin)
+    spec_rad_layout.addWidget(HintLabel(tooltip_text("specifier_radius_hint")))
+    layout.addWidget(spec_rad_row, 4, 3)
+
     return AdvancedSection(
         box=box,
         word_span_spin=word_span_spin,
@@ -487,6 +522,8 @@ def build_advanced_section() -> AdvancedSection:
         enable_ocr_check=enable_ocr_check,
         enable_vector_check=enable_vector_check,
         dark_theme_check=dark_theme_check,
+        specifier_column_edit=specifier_column_edit,
+        specifier_radius_spin=specifier_radius_spin,
     )
 
 
