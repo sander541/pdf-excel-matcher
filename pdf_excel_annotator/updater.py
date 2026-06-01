@@ -42,11 +42,14 @@ def fetch_latest_release() -> Optional[dict]:
     Returns None if fetch fails or no releases found.
     """
     try:
+        import ssl
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
         req = urllib.request.Request(
             GITHUB_API_URL,
             headers={"User-Agent": f"pdf-excel-annotator/{__version__}"},
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode())
                 return data
