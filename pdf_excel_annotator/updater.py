@@ -21,6 +21,23 @@ GITHUB_REPO = "sander541/pdf-excel-matcher"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
+def _ssl_context():
+    """Return an SSL context with certifi's CA bundle.
+
+    In a PyInstaller frozen build the certifi data file is bundled into
+    _MEIPASS/certifi/cacert.pem. Outside a frozen build, certifi.where()
+    returns the correct path on its own.
+    """
+    import ssl
+    import certifi
+
+    if getattr(sys, "_MEIPASS", None):
+        cafile = Path(sys._MEIPASS) / "certifi" / "cacert.pem"
+    else:
+        cafile = Path(certifi.where())
+    return ssl.create_default_context(cafile=str(cafile))
+
+
 def parse_version(version_str: str) -> tuple[int, ...]:
     """Parse version string (e.g., '0.1.0') into comparable tuple."""
     try:
@@ -42,9 +59,7 @@ def fetch_latest_release() -> Optional[dict]:
     Returns None if fetch fails or no releases found.
     """
     try:
-        import ssl
-        import certifi
-        ctx = ssl.create_default_context(cafile=certifi.where())
+        ctx = _ssl_context()
         req = urllib.request.Request(
             GITHUB_API_URL,
             headers={"User-Agent": f"pdf-excel-annotator/{__version__}"},
@@ -87,10 +102,8 @@ def get_download_url_for_platform(release: dict) -> Optional[str]:
 def download_file(url: str, dest_path: Path) -> bool:
     """Download file from URL to destination path."""
     try:
-        import ssl
-        import certifi
         logger.info("Downloading %s", url)
-        ctx = ssl.create_default_context(cafile=certifi.where())
+        ctx = _ssl_context()
         req = urllib.request.Request(
             url,
             headers={"User-Agent": f"pdf-excel-annotator/{__version__}"},

@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+import certifi
 
 a = Analysis(
     ['gui.py'],
@@ -7,6 +7,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('pdf_excel_annotator', 'pdf_excel_annotator'),
+        (certifi.where(), 'certifi'),  # Bundle CA certs for SSL in frozen app
     ],
     hiddenimports=[],
     hookspath=[],
