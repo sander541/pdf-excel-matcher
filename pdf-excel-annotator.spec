@@ -1,6 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 import certifi
-from pdf_excel_annotator.version import __version__
+import re
+from pathlib import Path
+
+# Read version without importing the package (avoids sys.path issues in PyInstaller)
+_version_text = Path('pdf_excel_annotator/version.py').read_text(encoding='utf-8')
+__version__ = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', _version_text).group(1)
 
 a = Analysis(
     ['gui.py'],
