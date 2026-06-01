@@ -66,12 +66,14 @@ class UpdateCheckerWorker(QThread):
     check_complete = Signal()
 
     def run(self) -> None:  # pragma: no cover - update checker
+        import logging
+        logger = logging.getLogger(__name__)
         try:
             update_info = check_for_updates()
             if update_info:
                 self.update_available.emit(update_info)
-        except Exception:
-            pass  # Silently fail - don't disrupt user workflow
+        except Exception as exc:
+            logger.warning("Update check failed: %s", exc, exc_info=True)
         finally:
             self.check_complete.emit()
 
@@ -437,7 +439,11 @@ class AnnotatorWindow(QWidget):
             self.max_row_spin.setValue(min_value)
 
     def _check_for_updates_async(self) -> None:
-        """Check for updates in background without blocking UI."""
+        """Check for updates in background after window is shown."""
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(1500, self._start_update_checker)
+
+    def _start_update_checker(self) -> None:
         self.update_checker = UpdateCheckerWorker()
         self.update_checker.update_available.connect(self._on_update_available)
         self.update_checker.start()
