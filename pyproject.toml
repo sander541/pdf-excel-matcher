@@ -1,6 +1,6 @@
 [project]
 name = "pdf-excel-annotator"
-version = "1.0.5"
+version = "1.0.6"
 description = "Command-line and GUI tool for matching Excel codes to PDF plans."
 readme = "README.md"
 requires-python = ">=3.9"
