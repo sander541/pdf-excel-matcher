@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QToolButton,
     QVBoxLayout,
@@ -76,6 +77,20 @@ class UpdateCheckerWorker(QThread):
             logger.warning("Update check failed: %s", exc, exc_info=True)
         finally:
             self.check_complete.emit()
+
+
+class UpdateDownloadWorker(QThread):
+    finished = Signal(bool)  # True = success
+
+    def __init__(self, update_info: dict, current_exe: Path) -> None:
+        super().__init__()
+        self.update_info = update_info
+        self.current_exe = current_exe
+
+    def run(self) -> None:  # pragma: no cover
+        from pdf_excel_annotator.updater import perform_update
+        success = perform_update(self.update_info, self.current_exe)
+        self.finished.emit(success)
 
 
 class AnnotatorWindow(QWidget):
@@ -481,39 +496,47 @@ class AnnotatorWindow(QWidget):
             self._perform_update(update_info)
 
     def _perform_update(self, update_info: dict) -> None:
-        """Download and install the update."""
-        try:
-            # Get path to current executable
-            if getattr(sys, "frozen", False):
-                # Running as PyInstaller bundle
-                current_exe = Path(sys.executable)
-            else:
-                # Running as script - this shouldn't happen in production
-                QMessageBox.warning(
-                    self,
-                    "Update Not Available",
-                    "Update is only available for packaged releases.",
-                )
-                return
+        """Download update in background, show progress, then launch installer."""
+        if not getattr(sys, "frozen", False):
+            QMessageBox.warning(
+                self,
+                "Update Not Available",
+                "Update is only available for packaged releases.",
+            )
+            return
 
-            # Perform the update
-            if perform_update(update_info, current_exe):
-                QMessageBox.information(
-                    self,
-                    "Update Installing",
-                    "The installer is running. The application will now close.",
-                )
-                from pdf_excel_annotator.updater import restart_application
+        current_exe = Path(sys.executable)
 
-                restart_application(current_exe)
-            else:
-                QMessageBox.critical(
-                    self,
-                    "Update Failed",
-                    "Failed to install update. Please try again later.",
-                )
-        except Exception as exc:
-            QMessageBox.critical(self, "Update Error", f"Error during update: {exc}")
+        progress = QProgressDialog("Downloading update…", None, 0, 0, self)
+        progress.setWindowTitle("Updating")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setCancelButton(None)
+        progress.setMinimumDuration(0)
+        progress.show()
+        QApplication.processEvents()
+
+        self._download_worker = UpdateDownloadWorker(update_info, current_exe)
+        self._download_worker.finished.connect(
+            lambda ok: self._on_download_finished(ok, progress, current_exe)
+        )
+        self._download_worker.start()
+
+    def _on_download_finished(self, success: bool, progress: QProgressDialog, current_exe: Path) -> None:
+        progress.close()
+        if success:
+            QMessageBox.information(
+                self,
+                "Installing Update",
+                "Download complete. The installer will run now — the app will restart automatically.",
+            )
+            from pdf_excel_annotator.updater import restart_application
+            restart_application(current_exe)
+        else:
+            QMessageBox.critical(
+                self,
+                "Update Failed",
+                "Failed to download the update. Please try again later.",
+            )
 
 def _setup_logging() -> None:
     """Write logs to a file next to the executable so we can diagnose issues."""

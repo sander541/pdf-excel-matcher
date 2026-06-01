@@ -42,7 +42,7 @@ Name: "{group}\Uninstall PDF Excel Annotator"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\PDF Excel Annotator"; Filename: "{app}\pdf-excel-annotator.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\pdf-excel-annotator.exe"; Description: "{cm:LaunchProgram,PDF Excel Annotator}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\pdf-excel-annotator.exe"; Description: "{cm:LaunchProgram,PDF Excel Annotator}"; Flags: nowait postinstall
 
 [UninstallDelete]
 Type: dirifempty; Name: "{app}"

@@ -235,7 +235,7 @@ def perform_update(update_info: dict, current_exe_path: Path) -> bool:
     try:
         logger.info("Launching installer: %s", temp_installer)
         subprocess.Popen(
-            [str(temp_installer), "/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES"],
+            [str(temp_installer), "/SILENT", "/NORESTART"],
             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
         )
         return True
