@@ -515,7 +515,26 @@ class AnnotatorWindow(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Update Error", f"Error during update: {exc}")
 
+def _setup_logging() -> None:
+    """Write logs to a file next to the executable so we can diagnose issues."""
+    import logging
+    from pathlib import Path
+
+    if getattr(sys, "frozen", False):
+        log_dir = Path(sys.executable).parent
+    else:
+        log_dir = Path(__file__).parent
+
+    log_path = log_dir / "pdf-excel-annotator.log"
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[logging.FileHandler(log_path, encoding="utf-8")],
+    )
+
+
 def main() -> int:  # pragma: no cover - GUI launcher
+    _setup_logging()
     app = QApplication(sys.argv)
     QToolTip.setFont(QFontDatabase.systemFont(QFontDatabase.GeneralFont))
     app.setStyleSheet(

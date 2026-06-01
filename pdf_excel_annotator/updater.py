@@ -42,12 +42,16 @@ def fetch_latest_release() -> Optional[dict]:
     Returns None if fetch fails or no releases found.
     """
     try:
-        with urllib.request.urlopen(GITHUB_API_URL, timeout=5) as response:
+        req = urllib.request.Request(
+            GITHUB_API_URL,
+            headers={"User-Agent": f"pdf-excel-annotator/{__version__}"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode())
                 return data
     except Exception as exc:
-        logger.debug(f"Failed to fetch latest release: {exc}")
+        logger.warning("Failed to fetch latest release: %s", exc, exc_info=True)
 
     return None
 
