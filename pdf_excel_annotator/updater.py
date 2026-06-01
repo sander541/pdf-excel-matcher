@@ -87,11 +87,19 @@ def get_download_url_for_platform(release: dict) -> Optional[str]:
 def download_file(url: str, dest_path: Path) -> bool:
     """Download file from URL to destination path."""
     try:
-        logger.info(f"Downloading {url}")
-        urllib.request.urlretrieve(url, dest_path)
+        import ssl
+        import certifi
+        logger.info("Downloading %s", url)
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": f"pdf-excel-annotator/{__version__}"},
+        )
+        with urllib.request.urlopen(req, timeout=60, context=ctx) as response:
+            dest_path.write_bytes(response.read())
         return True
     except Exception as exc:
-        logger.error(f"Failed to download update: {exc}")
+        logger.error("Failed to download update: %s", exc, exc_info=True)
         return False
 
 
