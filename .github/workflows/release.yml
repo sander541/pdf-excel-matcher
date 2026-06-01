@@ -14,8 +14,25 @@ on:
         type: string
 
 jobs:
-  # ── Step 1: bump version, tag, create GitHub Release ─────────────────────
+  # ── Step 1: run tests ─────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install --upgrade pip wheel setuptools
+      - run: pip install -r requirements.txt pytest
+      - run: pytest tests/ -v
+
+  # ── Step 2: bump version, tag, create GitHub Release ─────────────────────
   prepare:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -48,7 +65,7 @@ jobs:
           git push origin v${{ inputs.version }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           body: ${{ inputs.release_notes || format('Release v{0}', inputs.version) }}
@@ -57,7 +74,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── Step 2: build on all platforms in parallel (waits for prepare) ───────
+  # ── Step 3: build on all platforms in parallel (waits for prepare) ────────
   build:
     needs: prepare
     permissions:
@@ -90,6 +107,9 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip wheel setuptools
+
       - name: Install dependencies
         run: pip install -r requirements.txt pyinstaller
 
@@ -114,7 +134,7 @@ jobs:
         run: tar -czf pdf-excel-annotator-linux.tar.gz -C dist pdf-excel-annotator
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           files: ${{ matrix.artifact }}
