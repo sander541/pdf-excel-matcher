@@ -53,30 +53,34 @@ def build_match_results(
     pdf_counts: Dict[str, int] = {key: len(value) for key, value in pdf_occurrences.items()}
     usage_counts: Counter[str] = Counter()
 
+    excel_code_norms: set[str] = {e.code_norm for e in excel_entries}
+
     for entry in excel_entries:
         excel_counts[entry.code_norm] += entry.expected_count
         display_map.setdefault(entry.code_norm, entry.code_raw)
         variants = generate_code_variants(entry.code_norm) or [entry.code_norm]
 
-        # Try to match expected_count occurrences
+        # Try to match expected_count occurrences across all variants in order.
+        # If the first variant is found but doesn't cover the full expected count,
+        # continue to the next (shorter) variant rather than stopping short.
         matched_count = 0
         matched_key = None
 
         first_source: str | None = None
         for variant in variants:
             occ_list = available_occurrences.get(variant)
-            if occ_list:
+            if not occ_list:
+                continue
+            if matched_key is None:
                 matched_key = variant
-                # Try to find expected_count occurrences for this variant
-                for _ in range(entry.expected_count):
-                    if not occ_list:
-                        break
-                    matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
-                    if first_source is None:
-                        first_source = matched_occurrence.source
-                    matched_count += 1
-                    usage_counts[variant] += 1
-                    details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
+            while matched_count < entry.expected_count and occ_list:
+                matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
+                if first_source is None:
+                    first_source = matched_occurrence.source
+                matched_count += 1
+                usage_counts[variant] += 1
+                details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
+            if matched_count >= entry.expected_count:
                 break
 
         matched = matched_count > 0
@@ -105,10 +109,22 @@ def build_match_results(
                 f"Code `{display}` matched {total - missing_count} of {total} expected entries."
             )
 
+    # Build the set of base variants that are implied by matched suffixed Excel codes.
+    # e.g. if SU-3.P was matched, then SU-3 is a known base variant and bare SU-3
+    # occurrences in the PDF should not be flagged as unmatched.
+    matched_base_variants: set[str] = set()
+    for code_norm in usage_counts:
+        for v in generate_code_variants(code_norm)[1:]:  # skip index 0 (the code itself)
+            matched_base_variants.add(v)
+
     # Notes for PDF codes whose counts differ from matched Excel entries
     for code_norm, pdf_count in pdf_counts.items():
         matched_count = usage_counts.get(code_norm, 0)
         if pdf_count != matched_count:
+            # Suppress notes for bare codes that are just the base form of a matched
+            # suffixed Excel code (e.g. bare SU-3 when SU-3.P / SU-3.V were matched).
+            if code_norm not in excel_code_norms and code_norm in matched_base_variants:
+                continue
             notes.append(
                 f"Code `{code_norm}` occurs {pdf_count} time(s) in PDF but matched to {matched_count} Excel entries."
             )
