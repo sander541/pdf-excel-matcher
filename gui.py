@@ -31,7 +31,7 @@ from pdf_excel_annotator.gui_helpers import (
     build_log_section,
     tooltip_text,
 )
-from pdf_excel_annotator.updater import check_for_updates, perform_update
+from pdf_excel_annotator.updater import check_for_updates
 from pdf_excel_annotator.version import __version__
 
 

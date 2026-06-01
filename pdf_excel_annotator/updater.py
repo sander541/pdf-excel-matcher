@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -115,43 +113,6 @@ def download_file(url: str, dest_path: Path) -> bool:
         logger.error("Failed to download update: %s", exc, exc_info=True)
         return False
 
-
-def replace_executable(new_exe_path: Path, current_exe_path: Path) -> bool:
-    """
-    Replace current executable with new one.
-
-    On Windows, this requires the current process to not have the file locked.
-    The caller should ensure the app is closed properly before calling this.
-    """
-    try:
-        # Ensure paths are absolute
-        new_exe = Path(new_exe_path).resolve()
-        current_exe = Path(current_exe_path).resolve()
-
-        if not new_exe.exists():
-            logger.error(f"New executable not found: {new_exe}")
-            return False
-
-        # On Windows, we need to copy to a temp location first, then replace
-        if sys.platform == "win32":
-            # Copy new exe over current exe
-            # This may fail if the file is still in use
-            shutil.copy2(new_exe, current_exe)
-        else:
-            # On Unix-like systems, atomic replace is safer
-            new_exe.replace(current_exe)
-
-        # Clean up temp file
-        try:
-            new_exe.unlink()
-        except Exception:
-            pass
-
-        logger.info(f"Successfully replaced executable: {current_exe}")
-        return True
-    except Exception as exc:
-        logger.error(f"Failed to replace executable: {exc}")
-        return False
 
 
 def restart_application(exe_path: Path) -> None:
