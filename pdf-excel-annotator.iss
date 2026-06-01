@@ -8,7 +8,7 @@
 [Setup]
 AppName=PDF Excel Annotator
 AppVersion={#Version}
-AppPublisher=Sander Sven
+AppPublisher=Zerano
 AppPublisherURL=https://github.com/sander541/pdf-excel-matcher
 AppSupportURL=https://github.com/sander541/pdf-excel-matcher/issues
 AppUpdatesURL=https://github.com/sander541/pdf-excel-matcher/releases
