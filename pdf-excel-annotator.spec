@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import certifi
+from pdf_excel_annotator.version import __version__
 
 a = Analysis(
     ['gui.py'],
@@ -49,5 +50,14 @@ app = BUNDLE(
     coll,
     name='pdf-excel-annotator.app',
     icon=None,
-    bundle_identifier=None,
+    bundle_identifier='com.zerano.pdf-excel-annotator',
+    info_plist={
+        'CFBundleName': 'PDF Excel Annotator',
+        'CFBundleDisplayName': 'PDF Excel Annotator',
+        'CFBundleShortVersionString': __version__,
+        'CFBundleVersion': __version__,
+        'NSHighResolutionCapable': True,
+        'NSPrincipalClass': 'NSApplication',
+        'NSHumanReadableCopyright': f'Copyright © 2025 Zerano',
+    },
 )

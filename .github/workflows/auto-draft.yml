@@ -1,0 +1,36 @@
+name: Auto-draft new PRs
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Convert to draft
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+
+            if (pr.data.draft) {
+              console.log('PR is already a draft — nothing to do.');
+              return;
+            }
+
+            await github.graphql(`
+              mutation($id: ID!) {
+                convertPullRequestToDraft(input: { pullRequestId: $id }) {
+                  pullRequest { isDraft }
+                }
+              }
+            `, { id: pr.data.node_id });
+
+            console.log('Converted PR to draft.');

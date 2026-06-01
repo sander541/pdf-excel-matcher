@@ -9,10 +9,11 @@ tips to get the best results on real‑world drawings.
 1) What This Tool Does
 ----------------------
 
-- Reads a list of codes from an Excel workbook (Currently processes single active sheet, multi-sheet support can be added).
+- Reads a list of codes from an Excel workbook (currently processes the active
+  sheet; multi-sheet selection can be added).
 - Scans one or more floor‑plan PDFs to find occurrences of those codes.
 - Writes a plain‑text report summarizing which Excel rows were matched.
-- Optionally creates highlighted “annotated” PDF copies for visual review, with
+- Optionally creates highlighted "annotated" PDF copies for visual review, with
   popups that include selected Excel row details.
 
 Use cases: mapping door or equipment tags from an asset list to their locations
@@ -26,8 +27,8 @@ Pipeline overview:
 
 - Excel loading
   - Reads the active sheet.
-  - The “header row” is provided; data starts on the next row.
-  - The “code column” (letters like C or AA) identifies which cells hold codes.
+  - The "header row" is provided; data starts on the next row.
+  - The "code column" (letters like C or AA) identifies which cells hold codes.
   - Each non‑empty code is normalized by removing whitespace and uppercasing
     (for example: "V MP U-1" → "VMPU-1").
   - Other non‑empty cells in the row are captured as key–value pairs for later
@@ -40,7 +41,7 @@ Pipeline overview:
 - PDF text extraction
   - First uses the native text layer (via PyMuPDF) to extract words.
   - Words are grouped by line and combined in sliding sequences up to a
-    configurable “max word span” (default 4) to catch split tokens.
+    configurable "max word span" (default 4) to catch split tokens.
   - Matches require non‑alphanumeric boundaries to avoid accidental substrings
     (e.g., ABC will not match inside XABC12).
 
@@ -62,16 +63,46 @@ Pipeline overview:
   - When annotation export is enabled, highlights are added to each matched PDF
     region with a short popup containing row details.
 
-3) Using the application
-------------------------
 
-Download and open
-- Windows: download the Windows artifact from Releases/Actions, unzip, and run the included `.exe`.
+3) Installing the Application
+------------------------------
+
+Download
+- Go to https://github.com/sander541/pdf-excel-matcher/releases/latest
+- Choose the right download for your platform:
+  - Windows:  pdf-excel-annotator-setup.exe  (Inno Setup installer)
+  - macOS:    pdf-excel-annotator-macos.zip  (contains the .app bundle)
+  - Linux:    pdf-excel-annotator-linux.tar.gz
+
+Install
+- Windows: run the installer; it places the app in Program Files and adds Start
+  Menu shortcuts. Optional desktop shortcut during setup.
+- macOS: unzip the archive and move the .app wherever you like (Applications
+  folder is typical). On first launch, right-click → Open if macOS blocks it.
+- Linux: extract the archive and run the pdf-excel-annotator binary directly.
+
+
+4) Auto-Updates
+---------------
+
+The app checks for updates automatically on each launch (background, non-blocking).
+
+- Windows: if a new version is available a dialog will appear. Click "Update"
+  and the installer downloads and runs silently; the app relaunches automatically.
+- macOS / Linux: a dialog will direct you to the releases page to download
+  the new version manually.
+
+You can safely click "Skip" on any update prompt — the app continues normally.
+
+
+5) Using the Application
+------------------------
 
 Set up your run
 - Excel file: select the workbook containing the codes (active sheet is used).
 - PDF files: add one or more floor‑plan PDFs (you can drag and drop into the list).
-- Output directory: choose where to save the plain‑text report and optional annotated PDFs.
+- Output directory: choose where to save the plain‑text report and optional
+  annotated PDFs.
 
 Required options
 - Code column: Excel column letters where codes live (e.g., C or AA).
@@ -79,16 +110,19 @@ Required options
 
 Optional settings
 - Limit rows: cap how many Excel rows are scanned to speed up trials.
-- Advanced Options (click “Show Advanced Options”):
+- Advanced Options (click "Show Advanced Options"):
   - Max word span: increase if codes are split across multiple words.
-  - Enable OCR: use only if native text search misses labels (slower). Adjust OCR zoom, confidence, angles as needed.
+  - Enable OCR: use only if native text search misses labels (slower). Adjust
+    OCR zoom, confidence, and angles as needed.
   - Enable vector OCR: scans likely label rectangles (useful for CAD‑style tags).
   - Use dark theme: applies a darker palette (default on Windows).
 
 Run and review
-- Click “Process”. Progress appears in the log panel.
-- When finished, open `report.txt` in the chosen output folder.
-- If “Also save annotated PDFs” is enabled, open the generated PDF copies to see highlights and popups with Excel row details.
+- Click "Process". Progress appears in the log panel.
+- When finished, open report.txt in the chosen output folder.
+- If "Also save annotated PDFs" is enabled, open the generated PDF copies to
+  see highlights and popups with Excel row details.
+
 
 6) Excel Sheet Expectations
 ---------------------------
@@ -105,7 +139,7 @@ Run and review
 
 Example layout (described):
 - Row 1 (headers): Code | Room | Level | Notes
-- Rows 2..N: values; the “Code” column is specified via --code-column (e.g., C)
+- Rows 2..N: values; the "Code" column is specified via --code-column (e.g., C)
 
 
 7) Report Format
@@ -141,13 +175,13 @@ Example excerpt:
 
 - If you do not get matches, first try without OCR; many PDFs contain a usable
   text layer. Only enable OCR if necessary (it is slower and noisier).
-- Increase max word span for labels split into multiple OCR tokens (e.g., “V”,
-  “MP”, “U-1” on the same line). Start with 4–6.
+- Increase max word span for labels split into multiple OCR tokens (e.g., "V",
+  "MP", "U-1" on the same line). Start with 4–6.
 - For tiny labels, raise OCR zoom (3–6) and consider lowering OCR confidence
   slightly if recall is poor.
 - Keep Excel codes consistent. Avoid trailing spaces and ensure the specified
   code column really contains the identifiers you expect to find in PDFs.
-- Use annotated PDFs to quickly validate whether a “No” might be due to missed
+- Use annotated PDFs to quickly validate whether a "No" might be due to missed
   OCR or a genuine absence on the drawing.
 
 
@@ -167,22 +201,24 @@ Example excerpt:
   code is fused into a longer alphanumeric string without separators.
 - PDF viewers display annotations differently; highlight appearance and popup
   behavior can vary by viewer and platform.
+- macOS / Linux auto-install is not supported; users are directed to download
+  the new release manually from the releases page.
 
 
 10) Troubleshooting
 -------------------
 
-- “OCR skipped…” note in the report
-  - Run without OCR and report bug
+- "OCR skipped…" note in the report
+  - Run without OCR and report bug.
 
-- “No codes found in the Excel workbook”
+- "No codes found in the Excel workbook"
   - Check the header row and code column settings; verify the active sheet; make
     sure the code cells are not empty and do not contain only whitespace.
 
-- “PDF file(s) not found”
+- "PDF file(s) not found"
   - Confirm paths and filenames; ensure they exist and are readable.
 
-- GUI “Process” does nothing
+- GUI "Process" does nothing
   - Ensure the Excel path is valid, at least one PDF is listed, and an output
     directory is selected. The log panel will show validation errors.
 
@@ -190,5 +226,12 @@ Example excerpt:
   - Adjust max word span; try enabling OCR; tweak OCR confidence; review the
     Notes section for count mismatches to guide your next step.
 
-- Visuals too bright on Windows: enable “Use dark theme” in Advanced.
+- App crashes or won't start
+  - Check pdf-excel-annotator.log in the same folder as the executable for
+    detailed error information.
 
+- Windows SmartScreen warning on first launch
+  - Click "More info" then "Run anyway". The warning appears for newly released
+    executables and fades as download reputation builds.
+
+- Visuals too bright on Windows: enable "Use dark theme" in Advanced.

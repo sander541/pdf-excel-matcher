@@ -4,7 +4,24 @@ CLI and GUI tool that reads codes from an Excel workbook, scans one or more
 floor‑plan PDFs for those codes, writes a plain‑text match report, and can
 optionally export highlighted PDF copies for visual review.
 
-## Requirements
+## Download (packaged app)
+
+Pre-built installers are available for all platforms on the
+[releases page](https://github.com/sander541/pdf-excel-matcher/releases/latest):
+
+| Platform | File |
+|----------|------|
+| Windows | `pdf-excel-annotator-setup.exe` (Inno Setup installer) |
+| macOS | `pdf-excel-annotator-macos.zip` (`.app` bundle) |
+| Linux | `pdf-excel-annotator-linux.tar.gz` |
+
+The app checks for updates automatically on launch and installs them silently
+on Windows. See [DISTRIBUTION.md](DISTRIBUTION.md) for full release and
+update documentation.
+
+---
+
+## Requirements (running from source)
 
 - Python 3.10+ (tested with 3.11)
 - `pip` plus the libraries listed in `requirements.txt` (PyMuPDF, openpyxl, PySide6)
