@@ -23,6 +23,9 @@ class PipelineOptions:
     count_column: Optional[str] = None  # Column with expected occurrence counts (e.g., "D")
     specifier_column: Optional[str] = None  # Column whose value disambiguates duplicate codes
     specifier_radius: float = 80.0  # Search radius (pt) for nearby specifier values; tune for drawing density
+    # Set of column letters to include in annotation popups (e.g. {"A","D","E"}).
+    # None = all columns except count_column. Count column is included when explicitly in the set.
+    annotation_columns: Optional[frozenset] = None
 
 
 @dataclass
