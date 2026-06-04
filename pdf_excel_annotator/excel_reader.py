@@ -21,6 +21,27 @@ class ExcelCodeEntry:
     specifier_norm: str | None = None  # Normalized value from specifier_column
 
 
+def read_column_headers(
+    workbook_path: str | Path,
+    header_row: int,
+) -> List[Tuple[str, str]]:
+    """Return [(column_letter, header_name), ...] for every column in the header row."""
+    workbook = load_workbook(workbook_path, data_only=True, read_only=True)
+    try:
+        sheet = workbook.active
+        rows = list(sheet.iter_rows(min_row=header_row, max_row=header_row, values_only=True))
+        if not rows:
+            return []
+        result: List[Tuple[str, str]] = []
+        for i, v in enumerate(rows[0]):
+            letter = get_column_letter(i + 1)
+            name = str(v).strip() if v is not None and str(v).strip() else letter
+            result.append((letter, name))
+        return result
+    finally:
+        workbook.close()
+
+
 def load_excel_codes(
     workbook_path: str | Path,
     code_column: str,
@@ -28,6 +49,7 @@ def load_excel_codes(
     max_row: int | None = None,
     count_column: str | None = None,
     specifier_column: str | None = None,
+    annotation_columns: Optional[frozenset] = None,
 ) -> List[ExcelCodeEntry]:
 
     # Convert column letters to 0-based indices for tuple access.
@@ -74,6 +96,17 @@ def load_excel_codes(
             if not normalized:
                 continue
 
+            # Determine which 0-based column indices to include in annotation details.
+            # annotation_columns (set of letters) → include exactly those columns.
+            # No annotation_columns → include all columns except the count column.
+            if annotation_columns is not None:
+                include_indices: set[int] | None = {
+                    column_index_from_string(col.upper()) - 1
+                    for col in annotation_columns
+                }
+            else:
+                include_indices = None  # all columns; count excluded below
+
             row_entries: list[Tuple[str, str]] = []
             for ci, cell_val in enumerate(row_vals):
                 if cell_val is None:
@@ -81,6 +114,13 @@ def load_excel_codes(
                 val_text = str(cell_val).strip()
                 if not val_text:
                     continue
+                if include_indices is not None:
+                    if ci not in include_indices:
+                        continue
+                else:
+                    # Default: exclude count column so it doesn't clutter popups
+                    if count_col_idx is not None and ci == count_col_idx:
+                        continue
                 header = headers[ci] if ci < len(headers) else get_column_letter(ci + 1)
                 row_entries.append((header, val_text))
 

@@ -7,7 +7,12 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QProgressDialog,
     QPushButton,
@@ -93,11 +98,76 @@ class UpdateDownloadWorker(QThread):
         self.finished.emit(success)
 
 
+class ColumnSelectorDialog(QDialog):
+    """Checklist dialog for choosing which Excel columns appear in annotation popups."""
+
+    def __init__(
+        self,
+        columns: list[tuple[str, str]],   # [(letter, header_name), ...]
+        preselected: set[str] | None,      # None → use defaults
+        default_excluded: set[str],        # columns excluded by default (code + count)
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Select annotation detail columns")
+        self.setMinimumWidth(340)
+        self.setWindowModality(Qt.ApplicationModal)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        layout.addWidget(QLabel("Choose which columns appear in annotation popups:"))
+
+        self._list = QListWidget()
+        for letter, name in columns:
+            item = QListWidgetItem(f"{letter}  —  {name}")
+            item.setData(Qt.UserRole, letter)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            if preselected is not None:
+                checked = letter in preselected
+            else:
+                checked = letter not in default_excluded
+            item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+            self._list.addItem(item)
+
+        layout.addWidget(self._list)
+
+        # Select all / Deselect all
+        sel_row = QHBoxLayout()
+        sel_all = QPushButton("Select all")
+        sel_all.clicked.connect(lambda: self._set_all(Qt.Checked))
+        desel_all = QPushButton("Deselect all")
+        desel_all.clicked.connect(lambda: self._set_all(Qt.Unchecked))
+        sel_row.addWidget(sel_all)
+        sel_row.addWidget(desel_all)
+        sel_row.addStretch()
+        layout.addLayout(sel_row)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _set_all(self, state: Qt.CheckState) -> None:
+        for i in range(self._list.count()):
+            self._list.item(i).setCheckState(state)
+
+    def selected_columns(self) -> frozenset[str]:
+        """Return the frozenset of column letters the user checked."""
+        result = set()
+        for i in range(self._list.count()):
+            item = self._list.item(i)
+            if item.checkState() == Qt.Checked:
+                result.add(item.data(Qt.UserRole))
+        return frozenset(result)
+
+
 class AnnotatorWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(f"PDF ↔ Excel Annotator v{__version__}")
         self.worker: AnnotatorWorker | None = None
+        self._annotation_columns: frozenset[str] | None = None  # None = all (count excluded)
         app = QApplication.instance()
         self._orig_style = app.style().objectName() if app else ""
         self._orig_palette = app.palette() if app else None
@@ -130,7 +200,13 @@ class AnnotatorWindow(QWidget):
         self.header_row_edit = options.header_row_edit
         self.limit_rows_check = options.limit_rows_check
         self.max_row_spin = options.max_row_spin
-        self.header_row_edit.textChanged.connect(self._sync_limit_rows_min)
+        # _on_header_row_changed calls _sync_limit_rows_min internally, so connect once
+        self.header_row_edit.textChanged.connect(self._on_header_row_changed)
+
+        # Reset column selection whenever the Excel file changes
+        self.excel_edit.textChanged.connect(self._reset_annotation_columns)
+        self.code_column_edit.textChanged.connect(self._update_detail_columns_button)
+        self.count_column_edit.textChanged.connect(self._update_detail_columns_button)
 
         advanced = build_advanced_section()
         self.advanced_box = advanced.box
@@ -156,6 +232,23 @@ class AnnotatorWindow(QWidget):
 
         container_layout.addWidget(files.group)
         container_layout.addLayout(options.layout)
+
+        # Detail columns selector row
+        detail_row = QHBoxLayout()
+        self.detail_columns_btn = QPushButton("Detail columns…")
+        self.detail_columns_btn.setEnabled(False)
+        self.detail_columns_btn.setToolTip(
+            "Choose which Excel columns appear in annotation popups.\n"
+            "Available once an Excel file and header row are set."
+        )
+        self.detail_columns_btn.clicked.connect(self._open_column_selector)
+        self.detail_columns_label = QLabel("All columns shown (count column excluded)")
+        self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
+        detail_row.addWidget(self.detail_columns_btn)
+        detail_row.addSpacing(8)
+        detail_row.addWidget(self.detail_columns_label)
+        detail_row.addStretch()
+        container_layout.addLayout(detail_row)
 
         toggle_row = QHBoxLayout()
         self.advanced_toggle = QToolButton(text="Show Advanced Options")
@@ -398,6 +491,7 @@ class AnnotatorWindow(QWidget):
             ocr_angles=angles or [0],
             enable_ocr=self.enable_ocr_check.isChecked(),
             enable_vector_ocr=self.enable_vector_check.isChecked(),
+            annotation_columns=self._annotation_columns,
         )
 
     def _run_job(self) -> None:
@@ -452,6 +546,73 @@ class AnnotatorWindow(QWidget):
         self.max_row_spin.setMinimum(min_value)
         if self.max_row_spin.value() < min_value:
             self.max_row_spin.setValue(min_value)
+
+    def _reset_annotation_columns(self) -> None:
+        """Clear column selection when the Excel file changes."""
+        self._annotation_columns = None
+        self._update_detail_columns_button()
+
+    def _on_header_row_changed(self, text: str) -> None:
+        self._sync_limit_rows_min(text)
+        self._reset_annotation_columns()
+
+    def _update_detail_columns_button(self) -> None:
+        """Enable the detail columns button only when Excel file + header row are ready."""
+        excel_ok = bool(self.excel_edit.text().strip()) and Path(self.excel_edit.text().strip()).exists()
+        try:
+            header_ok = int(self.header_row_edit.text().strip()) >= 1
+        except ValueError:
+            header_ok = False
+        enabled = excel_ok and header_ok
+        self.detail_columns_btn.setEnabled(enabled)
+        if not enabled:
+            self.detail_columns_label.setText("Set Excel file and header row to configure")
+            self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
+        elif self._annotation_columns is None:
+            self.detail_columns_label.setText("All columns shown (count column excluded)")
+            self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
+        else:
+            n = len(self._annotation_columns)
+            self.detail_columns_label.setText(f"{n} column{'s' if n != 1 else ''} selected")
+            self.detail_columns_label.setStyleSheet("color: palette(text); font-size: 11px;")
+
+    def _open_column_selector(self) -> None:
+        """Read headers from Excel and open the column selector dialog."""
+        from pdf_excel_annotator.excel_reader import read_column_headers
+        excel_path = self.excel_edit.text().strip()
+        try:
+            header_row = int(self.header_row_edit.text().strip())
+        except ValueError:
+            return
+        try:
+            columns = read_column_headers(excel_path, header_row)
+        except Exception as exc:
+            QMessageBox.warning(self, "Could not read Excel", str(exc))
+            return
+        if not columns:
+            QMessageBox.information(self, "No columns found", "The header row appears to be empty.")
+            return
+
+        # Default exclusions: code column + count column
+        default_excluded: set[str] = set()
+        code_col = self.code_column_edit.text().strip().upper()
+        if code_col:
+            default_excluded.add(code_col)
+        count_col = self.count_column_edit.text().strip().upper()
+        if count_col:
+            default_excluded.add(count_col)
+
+        dialog = ColumnSelectorDialog(
+            columns=columns,
+            preselected=self._annotation_columns,
+            default_excluded=default_excluded,
+            parent=self,
+        )
+        if dialog.exec() == QDialog.Accepted:
+            selected = dialog.selected_columns()
+            # None means "use defaults" — keep that semantic when all non-excluded are checked
+            self._annotation_columns = selected if selected else frozenset()
+            self._update_detail_columns_button()
 
     def _check_for_updates_async(self) -> None:
         """Check for updates in background after window is shown."""
