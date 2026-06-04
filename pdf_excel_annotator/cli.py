@@ -34,18 +34,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--count-column",
         default=None,
-        help="Optional Excel column letter with expected occurrence counts (e.g., D). If provided, the tool will find N occurrences per row.",
+        help="Optional Excel column letter with expected occurrence counts (e.g., D).",
     )
     parser.add_argument(
         "--specifier-column",
         default=None,
-        help="Optional Excel column letter whose value appears near the code in the PDF (e.g., A for door numbers). Used to assign the correct PDF location when the same code appears multiple times.",
+        help="Optional Excel column letter whose value appears near the code in the PDF.",
     )
     parser.add_argument(
         "--specifier-radius",
         type=float,
         default=80.0,
-        help="Search radius in PDF points for nearby specifier values (default: 80). Reduce for dense CAD drawings, increase for large sheets.",
+        help="Search radius in PDF points for nearby specifier values (default: 80).",
     )
     parser.add_argument(
         "--header-row",
@@ -64,24 +64,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=4,
         help="How many consecutive PDF words to combine when searching for codes",
-    )
-    parser.add_argument("--ocr-zoom", type=float, default=2.0, help="Rendering zoom for OCR")
-    parser.add_argument(
-        "--ocr-confidence",
-        type=int,
-        default=90,
-        help="Minimum OCR confidence (0-100) to keep a word",
-    )
-    parser.add_argument("--enable-ocr", action="store_true", help="Enable raster OCR fallback")
-    parser.add_argument(
-        "--enable-vector-ocr",
-        action="store_true",
-        help="Enable the vector-label OCR pass",
-    )
-    parser.add_argument(
-        "--ocr-angles",
-        default="0,90,180,270",
-        help="Comma-separated rotation angles for OCR (default: 0,90,180,270)",
     )
     return parser.parse_args(argv)
 
@@ -111,12 +93,6 @@ def main(argv: list[str] | None = None) -> int:
         max_row = args.max_row
         if max_row is not None and max_row < args.header_row:
             raise ValueError("max-row must be >= header-row when provided")
-        try:
-            ocr_angles = [
-                int(part.strip()) for part in args.ocr_angles.split(",") if part.strip()
-            ]
-        except ValueError as exc:
-            raise ValueError(f"Invalid --ocr-angles value: {args.ocr_angles}") from exc
 
         options = PipelineOptions(
             excel_path=excel_path,
@@ -132,11 +108,6 @@ def main(argv: list[str] | None = None) -> int:
             header_row=args.header_row,
             max_row=max_row,
             max_word_span=args.max_word_span,
-            ocr_zoom=args.ocr_zoom,
-            ocr_confidence=args.ocr_confidence,
-            ocr_angles=ocr_angles,
-            enable_ocr=args.enable_ocr,
-            enable_vector_ocr=args.enable_vector_ocr,
         )
 
         logging.basicConfig(level=logging.INFO, format="%(message)s")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Dict, List
 
 from .config import PipelineOptions, PipelineResult
 from . import (
@@ -14,7 +14,6 @@ from . import (
     load_excel_codes,
     write_report,
 )
-from .pdf_reader import consume_ocr_warning
 from .utils import generate_code_variants
 
 logger = logging.getLogger(__name__)
@@ -64,11 +63,6 @@ def run_pipeline(
             str(pdf_path),
             target_codes,
             max_word_span=options.max_word_span,
-            ocr_zoom=options.ocr_zoom,
-            ocr_confidence=options.ocr_confidence,
-            ocr_angles=options.ocr_angles,
-            enable_ocr=options.enable_ocr,
-            enable_vector_ocr=options.enable_vector_ocr,
             specifier_radius=options.specifier_radius,
             progress_callback=_progress,
         )
@@ -76,9 +70,6 @@ def run_pipeline(
             combined_occurrences.setdefault(code, []).extend(occs)
 
     rows, notes, details = build_match_results(excel_entries, combined_occurrences)
-    ocr_warning = consume_ocr_warning()
-    if ocr_warning:
-        notes.append(ocr_warning)
     metadata = {
         "pdf_paths": [str(path) for path in options.pdf_paths],
         "excel_path": str(excel_path),
@@ -92,7 +83,7 @@ def run_pipeline(
     annotated_paths: Dict[str, Path] = {}
     if options.annotated_dir:
         if details:
-            annotated_paths = annotate_matches(details, options.annotated_dir, count_column=options.count_column)
+            annotated_paths = annotate_matches(details, options.annotated_dir)
             for original, annotated in annotated_paths.items():
                 emit(f"Annotated PDF saved: {annotated} (from {original})")
         else:
