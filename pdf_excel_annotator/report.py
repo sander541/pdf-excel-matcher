@@ -48,7 +48,16 @@ def write_report(
         lines.append(f"Max row: {max_row}")
     lines.append("")
 
-    # Check if any row has expected_count > 1 (meaning count column was used)
+    def _match_status(row: MatchRow) -> str:
+        """Return Yes / Partial / No depending on how many occurrences were found."""
+        if row.actual_count == 0:
+            return "No"
+        if row.actual_count < row.expected_count:
+            return "Partial"
+        return "Yes"
+
+    # Show Expected/Found columns whenever a count column was used
+    # (i.e. any row has expected_count > 1, or any partial/zero match exists).
     has_counts = any(row.expected_count > 1 for row in rows)
 
     if has_counts:
@@ -59,7 +68,7 @@ def write_report(
                 row.code,
                 str(row.expected_count),
                 str(row.actual_count),
-                "Yes" if row.matched else "No",
+                _match_status(row),
                 row.detection_source or "-",
             ]
             for row in rows
@@ -70,7 +79,7 @@ def write_report(
             [
                 str(row.excel_row),
                 row.code,
-                "Yes" if row.matched else "No",
+                _match_status(row),
                 row.detection_source or "-",
             ]
             for row in rows
