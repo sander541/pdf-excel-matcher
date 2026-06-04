@@ -211,11 +211,6 @@ class AnnotatorWindow(QWidget):
         advanced = build_advanced_section()
         self.advanced_box = advanced.box
         self.word_span_spin = advanced.word_span_spin
-        self.ocr_zoom_spin = advanced.ocr_zoom_spin
-        self.ocr_conf_spin = advanced.ocr_conf_spin
-        self.ocr_angles_edit = advanced.ocr_angles_edit
-        self.enable_ocr_check = advanced.enable_ocr_check
-        self.enable_vector_check = advanced.enable_vector_check
         self.dark_theme_check = advanced.dark_theme_check
         self.specifier_column_edit = advanced.specifier_column_edit
         self.specifier_radius_spin = advanced.specifier_radius_spin
@@ -464,16 +459,6 @@ class AnnotatorWindow(QWidget):
             )
             return None
 
-        try:
-            angles = [
-                int(part.strip())
-                for part in self.ocr_angles_edit.text().split(",")
-                if part.strip()
-            ]
-        except ValueError:
-            QMessageBox.warning(self, "Invalid OCR Angles", "Angles must be integers.")
-            return None
-
         return PipelineOptions(
             excel_path=excel_path,
             pdf_paths=pdf_paths,
@@ -486,11 +471,6 @@ class AnnotatorWindow(QWidget):
             header_row=header_row,
             max_row=max_row,
             max_word_span=self.word_span_spin.value(),
-            ocr_zoom=float(self.ocr_zoom_spin.value()),
-            ocr_confidence=self.ocr_conf_spin.value(),
-            ocr_angles=angles or [0],
-            enable_ocr=self.enable_ocr_check.isChecked(),
-            enable_vector_ocr=self.enable_vector_check.isChecked(),
             annotation_columns=self._annotation_columns,
         )
 

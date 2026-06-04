@@ -23,3 +23,6 @@ coverage.xml
 
 # OS junk
 Thumbs.db
+
+# App log (written next to exe in frozen builds, next to gui.py in dev)
+*.log

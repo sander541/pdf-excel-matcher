@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Sequence, Tuple
 
 import fitz
-import subprocess
 
 from .utils import normalize_code
 
@@ -29,7 +28,7 @@ class PdfCodeOccurrence:
 
 @dataclass
 class WordEntry:
-    """Single word extracted from PDF text, OCR, or vector pass."""
+    """Single word extracted from PDF text or annotation fields."""
 
     x0: float
     y0: float
@@ -46,16 +45,12 @@ def extract_pdf_occurrences(
     pdf_path: str,
     target_codes: Iterable[str],
     max_word_span: int = 4,
-    ocr_zoom: float = 2.0,
-    ocr_confidence: int = 70,
-    ocr_angles: Sequence[int] | None = None,
-    enable_ocr: bool = False,
-    enable_vector_ocr: bool = False,
     specifier_radius: float = 80.0,
     progress_callback: Callable[[str], None] | None = None,
 ) -> Dict[str, List[PdfCodeOccurrence]]:
     """
     Parse the PDF and return candidate occurrences matching the target codes.
+    Uses the native text layer and annotation fields only.
     """
 
     normalized_targets = tuple({code for code in target_codes if code})
@@ -67,8 +62,6 @@ def extract_pdf_occurrences(
     doc = fitz.open(pdf_path)
     try:
         matches: Dict[str, List[PdfCodeOccurrence]] = {}
-        angles = tuple(ocr_angles) if ocr_angles else (0, 90, 180, 270)
-        zoom_levels = _derive_zoom_levels(ocr_zoom) if enable_ocr else ()
         target_order = sorted(normalized_targets, key=len, reverse=True)
         total_pages = doc.page_count
         for page_index in range(total_pages):
@@ -91,28 +84,6 @@ def extract_pdf_occurrences(
                 for entry in words_raw
             ]
             words.extend(_extract_annotation_words(page))
-            if enable_ocr:
-                for zoom_index, zoom_level in enumerate(zoom_levels):
-                    if _OCR_WARNING:
-                        break
-                    words.extend(
-                        _extract_ocr_words(
-                            page,
-                            zoom=zoom_level,
-                            min_conf=ocr_confidence,
-                            angles=angles,
-                            block_base=(zoom_index + 1) * 10000,
-                        )
-                    )
-            if enable_vector_ocr and not _OCR_WARNING:
-                vector_words = _extract_vector_label_words(
-                    page,
-                    zoom=max(zoom_levels) if zoom_levels else 4.0,
-                    min_conf=max(40, ocr_confidence - 15),
-                    block_base=(len(zoom_levels) + 1) * 10000,
-                )
-                if vector_words:
-                    words.extend(vector_words)
             if not words:
                 continue
             # Sort by block, line, then word number to retain reading order.
@@ -156,7 +127,6 @@ def _group_words_by_line(words: Sequence[WordEntry]) -> Dict[Tuple[int, int], Li
             continue
         key = (word.block, word.line)
         grouped.setdefault(key, []).append(word)
-    # Ensure each line respects word order
     for word_list in grouped.values():
         word_list.sort(key=lambda w: w.word)
     return grouped
@@ -207,227 +177,6 @@ def _generate_sequences(
     return occurrences
 
 
-def _extract_ocr_words(
-    page: fitz.Page,
-    zoom: float = 2.0,
-    min_conf: int = 70,
-    angles: Sequence[int] = (0, 90, 180, 270),
-    block_base: int = 0,
-) -> List[WordEntry]:
-    """Render the page multiple times and run OCR via the tesseract CLI."""
-
-    words: List[WordEntry] = []
-    if zoom <= 0:
-        zoom = 2.0
-
-    for idx, angle in enumerate(angles):
-        matrix = fitz.Matrix(zoom, zoom)
-        if angle:
-            matrix = matrix.prerotate(angle)
-        pix = page.get_pixmap(matrix=matrix, alpha=False)
-        png_bytes = pix.tobytes("png")
-
-        records = _run_tesseract_tsv(png_bytes, zoom)
-        if not records:
-            continue
-
-        inv = fitz.Matrix(matrix)
-        inv.invert()
-        block_offset = block_base + (idx + 1) * 1000
-        for rec in records:
-            text = rec["text"]
-            conf = rec["conf"]
-            if conf < min_conf:
-                continue
-            left = rec["left"]
-            top = rec["top"]
-            width = rec["width"]
-            height = rec["height"]
-            if width <= 0 or height <= 0:
-                continue
-            p0 = fitz.Point(left, top)
-            p1 = fitz.Point(left + width, top + height)
-            p0.transform(inv)
-            p1.transform(inv)
-            block = block_offset + rec["block"]
-            line = rec["line"]
-            word = rec["word"]
-            words.append(
-                WordEntry(
-                    x0=p0.x,
-                    y0=p0.y,
-                    x1=p1.x,
-                    y1=p1.y,
-                    text=text,
-                    block=block,
-                    line=line,
-                    word=word,
-                    source="ocr",
-                )
-            )
-    return words
-
-
-def _extract_vector_label_words(
-    page: fitz.Page,
-    zoom: float = 6.0,
-    min_conf: int = 60,
-    block_base: int = 0,
-) -> List[WordEntry]:
-    """OCR cropped regions that are likely vector-based labels (e.g., red door codes)."""
-
-    rects = _collect_vector_label_rects(page)
-    if not rects:
-        return []
-    merged_rects = _merge_rectangles(rects, margin=3.0)
-    words: List[WordEntry] = []
-    block_offset = block_base
-    for idx, rect in enumerate(merged_rects):
-        if rect.width < 8 or rect.height < 8:
-            continue
-        if rect.width > 250 or rect.height > 250:
-            continue
-        clip = fitz.Rect(rect)
-        clip.x0 = max(page.rect.x0, clip.x0 - 1)
-        clip.y0 = max(page.rect.y0, clip.y0 - 1)
-        clip.x1 = min(page.rect.x1, clip.x1 + 1)
-        clip.y1 = min(page.rect.y1, clip.y1 + 1)
-        if clip.width <= 0 or clip.height <= 0:
-            continue
-        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=clip, alpha=False)
-        records = _run_tesseract_tsv(pix.tobytes("png"), zoom)
-        if not records:
-            continue
-        block_offset += 100
-        for rec in records:
-            text = rec["text"]
-            conf = rec["conf"]
-            if conf < min_conf:
-                continue
-            width = rec["width"]
-            height = rec["height"]
-            if width <= 0 or height <= 0:
-                continue
-            left = rec["left"]
-            top = rec["top"]
-            x0 = clip.x0 + left / zoom
-            y0 = clip.y0 + top / zoom
-            x1 = clip.x0 + (left + width) / zoom
-            y1 = clip.y0 + (top + height) / zoom
-            words.append(
-                WordEntry(
-                    x0=x0,
-                    y0=y0,
-                    x1=x1,
-                    y1=y1,
-                    text=text,
-                    block=block_offset,
-                    line=rec["line"],
-                    word=rec["word"],
-                    source="vector-ocr",
-                )
-            )
-    return words
-
-
-def _run_tesseract_tsv(png_bytes: bytes, zoom: float) -> List[Dict[str, float]]:
-    """Execute tesseract and return parsed TSV rows."""
-
-    global _OCR_WARNING
-    try:
-        result = subprocess.run(
-            [
-                "tesseract",
-                "stdin",
-                "stdout",
-                "--psm",
-                "6",
-                "--dpi",
-                str(int(72 * zoom)),
-                "-l",
-                "eng",
-                "tsv",
-            ],
-            input=png_bytes,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
-        )
-    except FileNotFoundError:
-        if not _OCR_WARNING:
-            _OCR_WARNING = "OCR skipped because Tesseract is not installed or not on PATH."
-        return []
-    except subprocess.CalledProcessError as exc:
-        if not _OCR_WARNING:
-            _OCR_WARNING = (
-                "OCR skipped because Tesseract failed to run. "
-                "Check your installation and logs for details."
-            )
-        return []
-
-    lines = result.stdout.decode("utf-8", errors="ignore").splitlines()
-    if not lines:
-        return []
-    header = lines[0].split("\t")
-    field_index = {name: idx for idx, name in enumerate(header)}
-    required = {
-        "text",
-        "conf",
-        "left",
-        "top",
-        "width",
-        "height",
-        "block_num",
-        "line_num",
-        "word_num",
-    }
-    if not required.issubset(field_index):
-        return []
-
-    records: List[Dict[str, float]] = []
-    for raw in lines[1:]:
-        if not raw.strip():
-            continue
-        parts = raw.split("\t")
-        text = parts[field_index["text"]].strip()
-        if not text:
-            continue
-        try:
-            record = {
-                "text": text,
-                "conf": float(parts[field_index["conf"]]),
-                "left": float(parts[field_index["left"]]),
-                "top": float(parts[field_index["top"]]),
-                "width": float(parts[field_index["width"]]),
-                "height": float(parts[field_index["height"]]),
-                "block": int(parts[field_index["block_num"]]),
-                "line": int(parts[field_index["line_num"]]),
-                "word": int(parts[field_index["word_num"]]),
-            }
-        except ValueError:
-            continue
-        records.append(record)
-    return records
-
-
-def _derive_zoom_levels(base_zoom: float) -> Tuple[float, ...]:
-    """Return a tuple of zoom levels to run OCR with (deduped)."""
-
-    zoom = base_zoom if base_zoom and base_zoom > 0 else 2.0
-    levels: List[float] = [zoom]
-    if zoom < 3.0:
-        extra = max(3.0, zoom * 2)
-        if extra not in levels:
-            levels.append(extra)
-    # Preserve order but drop near-duplicates
-    deduped: List[float] = []
-    for level in levels:
-        add_level = round(level, 2)
-        if add_level not in deduped:
-            deduped.append(add_level)
-    return tuple(deduped)
-
-
 def _match_target_codes(
     normalized_text: str,
     targets: Sequence[str],
@@ -457,10 +206,7 @@ def _match_target_codes(
     return hits
 
 
-_NEARBY_PROXIMITY: float = 80.0
-
 # Annotation types whose /Contents field may carry user-typed codes.
-# Highlights, underlines, ink, links, etc. are excluded — they rarely carry meaningful text.
 _ANNOT_CODE_TYPES: frozenset[int] = frozenset({
     fitz.PDF_ANNOT_SQUARE,
     fitz.PDF_ANNOT_CIRCLE,
@@ -471,15 +217,13 @@ _ANNOT_CODE_TYPES: frozenset[int] = frozenset({
 })
 
 # Block index offset for words extracted from annotations.
-# Must stay above any block index produced by page.get_text("words"); in practice
-# PyMuPDF never returns block numbers near this magnitude for real text blocks.
 _ANNOTATION_BLOCK_BASE: int = 90_000
 
 
 def _populate_nearby_values(
     occurrences: List[PdfCodeOccurrence],
     words: List[WordEntry],
-    proximity: float = _NEARBY_PROXIMITY,
+    proximity: float = 80.0,
 ) -> None:
     """Populate each occurrence's nearby_values with normalized text of close words."""
     for occ in occurrences:
@@ -487,11 +231,7 @@ def _populate_nearby_values(
         cy = (occ.y0 + occ.y1) / 2
         nearby: List[str] = []
         for word in words:
-            # Skip x-axis first — constant-factor win, not asymptotic
             wx = (word.x0 + word.x1) / 2
-            # Skip x-axis first — cheaper than computing y and normalising the token.
-            # Note: all words are still visited (no index pre-filtering), so this is
-            # a constant-factor win, not an asymptotic improvement.
             if abs(cx - wx) > proximity:
                 continue
             wy = (word.y0 + word.y1) / 2
@@ -533,55 +273,3 @@ def _extract_annotation_words(page: fitz.Page) -> List[WordEntry]:
                 )
             )
     return words
-
-
-def _collect_vector_label_rects(page: fitz.Page) -> List[fitz.Rect]:
-    """Return rectangles that likely correspond to vector labels."""
-
-    rects: List[fitz.Rect] = []
-    for drawing in page.get_drawings():
-        rect = drawing.get("rect")
-        if not rect:
-            continue
-        box = fitz.Rect(rect)
-        if box.width <= 1 or box.height <= 1:
-            continue
-        if box.width > 300 or box.height > 300:
-            continue
-        rects.append(box)
-    return rects
-
-
-def _merge_rectangles(rects: Sequence[fitz.Rect], margin: float = 2.0) -> List[fitz.Rect]:
-    """Merge rectangles that overlap or are within the given margin."""
-
-    if not rects:
-        return []
-    result: List[fitz.Rect] = []
-    for rect in sorted(rects, key=lambda r: (r.y0, r.x0)):
-        expanded = fitz.Rect(rect)
-        expanded.x0 -= margin
-        expanded.y0 -= margin
-        expanded.x1 += margin
-        expanded.y1 += margin
-        merged = False
-        for idx, existing in enumerate(result):
-            if expanded.intersects(existing):
-                result[idx] = existing | rect
-                merged = True
-                break
-        if not merged:
-            result.append(fitz.Rect(rect))
-    return result
-
-
-_OCR_WARNING: str | None = None
-
-
-def consume_ocr_warning() -> str | None:
-    """Return and clear any captured OCR warning message."""
-
-    global _OCR_WARNING
-    message = _OCR_WARNING
-    _OCR_WARNING = None
-    return message

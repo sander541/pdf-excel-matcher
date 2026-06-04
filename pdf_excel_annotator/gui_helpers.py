@@ -190,11 +190,6 @@ class OptionsSection:
 class AdvancedSection:
     box: QGroupBox
     word_span_spin: QSpinBox
-    ocr_zoom_spin: QSpinBox
-    ocr_conf_spin: QSpinBox
-    ocr_angles_edit: QLineEdit
-    enable_ocr_check: QCheckBox
-    enable_vector_check: QCheckBox
     dark_theme_check: QCheckBox
     specifier_column_edit: QLineEdit
     specifier_radius_spin: QSpinBox
@@ -411,66 +406,6 @@ def build_advanced_section() -> AdvancedSection:
     word_layout.addWidget(HintLabel(tooltip_text("word_span_hint")))
     layout.addWidget(word_row, 0, 1)
 
-    layout.addWidget(QLabel("OCR zoom:"), 0, 2)
-    ocr_zoom_spin = QSpinBox()
-    ocr_zoom_spin.setMinimum(1)
-    ocr_zoom_spin.setMaximum(10)
-    ocr_zoom_spin.setValue(2)
-    ocr_zoom_spin.setToolTip(tooltip_text("ocr_zoom"))
-    zoom_row = QWidget()
-    zoom_layout = QHBoxLayout(zoom_row)
-    zoom_layout.setContentsMargins(0, 0, 0, 0)
-    zoom_layout.setSpacing(4)
-    zoom_layout.addWidget(ocr_zoom_spin)
-    zoom_layout.addWidget(HintLabel(tooltip_text("ocr_zoom_hint")))
-    layout.addWidget(zoom_row, 0, 3)
-
-    layout.addWidget(QLabel("OCR confidence:"), 1, 0)
-    ocr_conf_spin = QSpinBox()
-    ocr_conf_spin.setRange(0, 100)
-    ocr_conf_spin.setValue(90)
-    ocr_conf_spin.setToolTip(tooltip_text("ocr_conf"))
-    conf_row = QWidget()
-    conf_layout = QHBoxLayout(conf_row)
-    conf_layout.setContentsMargins(0, 0, 0, 0)
-    conf_layout.setSpacing(4)
-    conf_layout.addWidget(ocr_conf_spin)
-    conf_layout.addWidget(HintLabel(tooltip_text("ocr_conf_hint")))
-    layout.addWidget(conf_row, 1, 1)
-
-    layout.addWidget(QLabel("OCR angles:"), 1, 2)
-    ocr_angles_edit = QLineEdit("0,90,180,270")
-    ocr_angles_edit.setToolTip(tooltip_text("ocr_angles"))
-    angles_row = QWidget()
-    angles_layout = QHBoxLayout(angles_row)
-    angles_layout.setContentsMargins(0, 0, 0, 0)
-    angles_layout.setSpacing(4)
-    angles_layout.addWidget(ocr_angles_edit)
-    angles_layout.addWidget(HintLabel(tooltip_text("ocr_angles_hint")))
-    layout.addWidget(angles_row, 1, 3)
-
-    enable_ocr_check = QCheckBox("Enable OCR")
-    enable_ocr_check.setToolTip(tooltip_text("enable_ocr"))
-    ocr_row = QWidget()
-    ocr_row_layout = QHBoxLayout(ocr_row)
-    ocr_row_layout.setContentsMargins(0, 0, 0, 0)
-    ocr_row_layout.setSpacing(4)
-    ocr_row_layout.addWidget(enable_ocr_check)
-    ocr_row_layout.addWidget(HintLabel(tooltip_text("enable_ocr_hint")))
-    ocr_row_layout.addStretch()
-    layout.addWidget(ocr_row, 2, 0, 1, 2)
-
-    enable_vector_check = QCheckBox("Enable vector OCR")
-    enable_vector_check.setToolTip(tooltip_text("enable_vector"))
-    vector_row = QWidget()
-    vector_layout = QHBoxLayout(vector_row)
-    vector_layout.setContentsMargins(0, 0, 0, 0)
-    vector_layout.setSpacing(4)
-    vector_layout.addWidget(enable_vector_check)
-    vector_layout.addWidget(HintLabel(tooltip_text("enable_vector_hint")))
-    vector_layout.addStretch()
-    layout.addWidget(vector_row, 2, 2, 1, 2)
-
     # Appearance
     dark_theme_check = QCheckBox("Use dark theme")
     dark_theme_check.setToolTip(tooltip_text("dark_theme"))
@@ -481,11 +416,10 @@ def build_advanced_section() -> AdvancedSection:
     theme_layout.addWidget(dark_theme_check)
     theme_layout.addWidget(HintLabel(tooltip_text("dark_theme")))
     theme_layout.addStretch()
-    layout.addWidget(theme_row, 3, 0, 1, 4)
+    layout.addWidget(theme_row, 0, 2, 1, 2)
 
-    # Specifier (duplicate-code disambiguation) — placed in Advanced because it's
-    # an edge-case feature; keeping it here prevents the main options bar from overflowing.
-    layout.addWidget(QLabel("Specifier column:"), 4, 0)
+    # Specifier (duplicate-code disambiguation)
+    layout.addWidget(QLabel("Specifier column:"), 1, 0)
     specifier_column_edit = QLineEdit()
     specifier_column_edit.setFixedWidth(70)
     specifier_column_edit.setPlaceholderText("(optional)")
@@ -497,9 +431,9 @@ def build_advanced_section() -> AdvancedSection:
     spec_col_layout.setSpacing(4)
     spec_col_layout.addWidget(specifier_column_edit)
     spec_col_layout.addWidget(HintLabel(tooltip_text("specifier_column")))
-    layout.addWidget(spec_col_row, 4, 1)
+    layout.addWidget(spec_col_row, 1, 1)
 
-    layout.addWidget(QLabel("Specifier radius (pt):"), 4, 2)
+    layout.addWidget(QLabel("Specifier radius (pt):"), 1, 2)
     specifier_radius_spin = QSpinBox()
     specifier_radius_spin.setMinimum(10)
     specifier_radius_spin.setMaximum(500)
@@ -511,16 +445,11 @@ def build_advanced_section() -> AdvancedSection:
     spec_rad_layout.setSpacing(4)
     spec_rad_layout.addWidget(specifier_radius_spin)
     spec_rad_layout.addWidget(HintLabel(tooltip_text("specifier_radius_hint")))
-    layout.addWidget(spec_rad_row, 4, 3)
+    layout.addWidget(spec_rad_row, 1, 3)
 
     return AdvancedSection(
         box=box,
         word_span_spin=word_span_spin,
-        ocr_zoom_spin=ocr_zoom_spin,
-        ocr_conf_spin=ocr_conf_spin,
-        ocr_angles_edit=ocr_angles_edit,
-        enable_ocr_check=enable_ocr_check,
-        enable_vector_check=enable_vector_check,
         dark_theme_check=dark_theme_check,
         specifier_column_edit=specifier_column_edit,
         specifier_radius_spin=specifier_radius_spin,
