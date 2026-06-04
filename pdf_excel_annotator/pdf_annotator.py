@@ -108,18 +108,13 @@ def annotate_matches(
     matches: Iterable[MatchDetail],
     output_dir: str | Path,
     highlight_color: tuple[float, float, float] = (1.0, 0.92, 0.23),
-    count_column: str | None = None,
 ) -> Mapping[str, Path]:
     """
     Annotate PDFs for the provided matches.
 
     Returns a mapping of source PDF path -> annotated PDF path.
-
-    Args:
-        matches: Iterable of match details to annotate
-        output_dir: Directory to save annotated PDFs
-        highlight_color: RGB tuple for highlight color
-        count_column: Excel column letter for counts (will be excluded from annotations)
+    The row_data on each match already contains only the columns selected
+    by the user (filtering happens at the excel_reader level).
     """
 
     matches_by_pdf: dict[str, list[MatchDetail]] = {}
@@ -147,12 +142,10 @@ def annotate_matches(
                 page = doc[occ.page - 1]
                 rect = fitz.Rect(occ.x0, occ.y0, occ.x1, occ.y1)
 
-                # Filter out count column from annotation display if specified
-                details = []
-                for header, value in detail.excel_entry.row_data:
-                    if count_column and header.upper() == count_column.upper():
-                        continue  # Skip count column
-                    details.append(f"{header}: {value}")
+                details = [
+                    f"{header}: {value}"
+                    for header, value in detail.excel_entry.row_data
+                ]
 
                 info = "\n".join(details) if details else detail.excel_entry.code_raw
                 # Some viewers truncate long annotation content; keep it bounded.
