@@ -167,18 +167,14 @@ class FilesSection:
 
 
 @dataclass
-class OptionsSection:
-    layout: QHBoxLayout
+class OptionsGridSection:
+    """Combined options + advanced settings in one aligned grid."""
+    container: QWidget
     code_column_edit: QLineEdit
     count_column_edit: QLineEdit
     header_row_edit: QLineEdit
     limit_rows_check: QCheckBox
     max_row_spin: QSpinBox
-
-
-@dataclass
-class AdvancedSection:
-    container: QWidget
     word_span_spin: QSpinBox
     dark_theme_check: QCheckBox
     specifier_column_edit: QLineEdit
@@ -293,57 +289,60 @@ def build_files_section(
     )
 
 
-def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsSection:
-    row = QHBoxLayout()
-    row.setContentsMargins(0, 0, 0, 0)
-    row.setSpacing(10)
+def build_options_grid(toggle_limit_rows: Callable[[bool], None]) -> OptionsGridSection:
+    """Build options + advanced as a two-row QGridLayout so columns align perfectly."""
+    container = QWidget()
+    grid = QGridLayout(container)
+    grid.setContentsMargins(0, 0, 0, 0)
+    grid.setHorizontalSpacing(8)
+    grid.setVerticalSpacing(8)
+    # Last column absorbs leftover space; all input columns are fixed-size.
+    grid.setColumnStretch(7, 1)
 
-    code_widget = QWidget()
-    code_layout = QHBoxLayout(code_widget)
-    code_layout.setContentsMargins(0, 0, 0, 0)
-    code_layout.setSpacing(6)
-    code_layout.addWidget(QLabel("Code column:"))
+    INPUT_W = 70
+
+    def _lbl(text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        return lbl
+
+    def _cell(*widgets) -> QWidget:
+        """Wrap input + hint tightly; size policy keeps it from stretching."""
+        w = QWidget()
+        w.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        for item in widgets:
+            lay.addWidget(item)
+        return w
+
+    # ── Row 0: Code column | Count column | Header row | Limit rows ──────────
+
+    grid.addWidget(_lbl("Code column:"), 0, 0)
     code_column_edit = QLineEdit()
-    code_column_edit.setFixedWidth(70)
+    code_column_edit.setFixedWidth(INPUT_W)
     code_column_edit.setPlaceholderText("e.g. C")
     code_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{1,3}$")))
     code_column_edit.setToolTip(tooltip_text("code_column"))
-    code_layout.addWidget(code_column_edit)
-    code_layout.addWidget(HintLabel(tooltip_text("code_column")))
-    code_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(code_column_edit, HintLabel(tooltip_text("code_column"))), 0, 1)
 
-    count_widget = QWidget()
-    count_layout = QHBoxLayout(count_widget)
-    count_layout.setContentsMargins(0, 0, 0, 0)
-    count_layout.setSpacing(6)
-    count_layout.addWidget(QLabel("Count column:"))
+    grid.addWidget(_lbl("Count column:"), 0, 2)
     count_column_edit = QLineEdit()
-    count_column_edit.setFixedWidth(70)
+    count_column_edit.setFixedWidth(INPUT_W)
     count_column_edit.setPlaceholderText("(optional)")
     count_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
     count_column_edit.setToolTip(tooltip_text("count_column"))
-    count_layout.addWidget(count_column_edit)
-    count_layout.addWidget(HintLabel(tooltip_text("count_column")))
-    count_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(count_column_edit, HintLabel(tooltip_text("count_column"))), 0, 3)
 
-    header_widget = QWidget()
-    header_layout = QHBoxLayout(header_widget)
-    header_layout.setContentsMargins(0, 0, 0, 0)
-    header_layout.setSpacing(6)
-    header_layout.addWidget(QLabel("Header row:"))
+    grid.addWidget(_lbl("Header row:"), 0, 4)
     header_row_edit = QLineEdit()
-    header_row_edit.setFixedWidth(70)
+    header_row_edit.setFixedWidth(INPUT_W)
     header_row_edit.setPlaceholderText("e.g. 1")
     header_row_edit.setValidator(QIntValidator(1, 100000))
     header_row_edit.setToolTip(tooltip_text("header_row"))
-    header_layout.addWidget(header_row_edit)
-    header_layout.addWidget(HintLabel(tooltip_text("header_row")))
-    header_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(header_row_edit, HintLabel(tooltip_text("header_row"))), 0, 5)
 
-    limit_widget = QWidget()
-    limit_layout = QHBoxLayout(limit_widget)
-    limit_layout.setContentsMargins(0, 0, 0, 0)
-    limit_layout.setSpacing(6)
     limit_rows_check = QCheckBox("Limit rows")
     limit_rows_check.setToolTip(tooltip_text("row_limit"))
     limit_rows_check.toggled.connect(toggle_limit_rows)
@@ -354,87 +353,46 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     max_row_spin.setFixedWidth(90)
     max_row_spin.setEnabled(False)
     max_row_spin.setToolTip(tooltip_text("max_row"))
-    limit_layout.addWidget(limit_rows_check)
-    limit_layout.addWidget(max_row_spin)
-    limit_layout.addWidget(HintLabel(tooltip_text("row_limit")))
-    limit_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(limit_rows_check, max_row_spin, HintLabel(tooltip_text("row_limit"))), 0, 6)
 
-    row.addWidget(code_widget)
-    row.addSpacing(10)
-    row.addWidget(count_widget)
-    row.addSpacing(16)
-    row.addWidget(header_widget)
-    row.addSpacing(16)
-    row.addWidget(limit_widget)
-    row.addStretch(1)
+    # ── Row 1: Max word span | Specifier column | Specifier radius | Dark theme
 
-    return OptionsSection(
-        layout=row,
+    grid.addWidget(_lbl("Max word span:"), 1, 0)
+    word_span_spin = QSpinBox()
+    word_span_spin.setMinimum(1)
+    word_span_spin.setValue(4)
+    word_span_spin.setFixedWidth(INPUT_W)
+    word_span_spin.setToolTip(tooltip_text("word_span"))
+    grid.addWidget(_cell(word_span_spin, HintLabel(tooltip_text("word_span_hint"))), 1, 1)
+
+    grid.addWidget(_lbl("Specifier column:"), 1, 2)
+    specifier_column_edit = QLineEdit()
+    specifier_column_edit.setFixedWidth(INPUT_W)
+    specifier_column_edit.setPlaceholderText("(optional)")
+    specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
+    specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
+    grid.addWidget(_cell(specifier_column_edit, HintLabel(tooltip_text("specifier_column"))), 1, 3)
+
+    grid.addWidget(_lbl("Specifier radius (pt):"), 1, 4)
+    specifier_radius_spin = QSpinBox()
+    specifier_radius_spin.setMinimum(10)
+    specifier_radius_spin.setMaximum(500)
+    specifier_radius_spin.setValue(80)
+    specifier_radius_spin.setFixedWidth(INPUT_W)
+    specifier_radius_spin.setToolTip(tooltip_text("specifier_radius"))
+    grid.addWidget(_cell(specifier_radius_spin, HintLabel(tooltip_text("specifier_radius_hint"))), 1, 5)
+
+    dark_theme_check = QCheckBox("Dark theme")
+    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
+    grid.addWidget(_cell(dark_theme_check, HintLabel(tooltip_text("dark_theme"))), 1, 6)
+
+    return OptionsGridSection(
+        container=container,
         code_column_edit=code_column_edit,
         count_column_edit=count_column_edit,
         header_row_edit=header_row_edit,
         limit_rows_check=limit_rows_check,
         max_row_spin=max_row_spin,
-    )
-
-
-def build_advanced_section() -> AdvancedSection:
-    """Build the always-visible advanced options row."""
-    container = QWidget()
-    row = QHBoxLayout(container)
-    row.setContentsMargins(0, 0, 0, 0)
-    row.setSpacing(10)
-
-    def _small_widget(*widgets) -> QWidget:
-        w = QWidget()
-        w.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
-        lay = QHBoxLayout(w)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(6)
-        for item in widgets:
-            lay.addWidget(item)
-        return w
-
-    # Max word span
-    row.addWidget(QLabel("Max word span:"))
-    word_span_spin = QSpinBox()
-    word_span_spin.setMinimum(1)
-    word_span_spin.setValue(4)
-    word_span_spin.setFixedWidth(60)
-    word_span_spin.setToolTip(tooltip_text("word_span"))
-    row.addWidget(_small_widget(word_span_spin, HintLabel(tooltip_text("word_span_hint"))))
-    row.addSpacing(16)
-
-    # Specifier column
-    row.addWidget(QLabel("Specifier column:"))
-    specifier_column_edit = QLineEdit()
-    specifier_column_edit.setFixedWidth(60)
-    specifier_column_edit.setPlaceholderText("(opt.)")
-    specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
-    specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
-    row.addWidget(_small_widget(specifier_column_edit, HintLabel(tooltip_text("specifier_column"))))
-    row.addSpacing(16)
-
-    # Specifier radius
-    row.addWidget(QLabel("Specifier radius (pt):"))
-    specifier_radius_spin = QSpinBox()
-    specifier_radius_spin.setMinimum(10)
-    specifier_radius_spin.setMaximum(500)
-    specifier_radius_spin.setValue(80)
-    specifier_radius_spin.setFixedWidth(60)
-    specifier_radius_spin.setToolTip(tooltip_text("specifier_radius"))
-    row.addWidget(_small_widget(specifier_radius_spin, HintLabel(tooltip_text("specifier_radius_hint"))))
-    row.addSpacing(16)
-
-    # Dark theme
-    dark_theme_check = QCheckBox("Dark theme")
-    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
-    row.addWidget(_small_widget(dark_theme_check, HintLabel(tooltip_text("dark_theme"))))
-
-    row.addStretch(1)
-
-    return AdvancedSection(
-        container=container,
         word_span_spin=word_span_spin,
         dark_theme_check=dark_theme_check,
         specifier_column_edit=specifier_column_edit,

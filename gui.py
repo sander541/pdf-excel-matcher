@@ -31,8 +31,7 @@ from pdf_excel_annotator.pipeline import run_pipeline
 from pdf_excel_annotator.utils import is_valid_code_column
 from pdf_excel_annotator.gui_helpers import (
     build_files_section,
-    build_options_section,
-    build_advanced_section,
+    build_options_grid,
     build_log_section,
     tooltip_text,
 )
@@ -194,26 +193,22 @@ class AnnotatorWindow(QWidget):
         self.output_dir_edit = files.output_dir_edit
         self.annotated_checkbox = files.annotated_checkbox
 
-        options = build_options_section(self._toggle_limit_rows)
-        self.code_column_edit = options.code_column_edit
-        self.count_column_edit = options.count_column_edit
-        self.header_row_edit = options.header_row_edit
-        self.limit_rows_check = options.limit_rows_check
-        self.max_row_spin = options.max_row_spin
+        opts = build_options_grid(self._toggle_limit_rows)
+        self.code_column_edit = opts.code_column_edit
+        self.count_column_edit = opts.count_column_edit
+        self.header_row_edit = opts.header_row_edit
+        self.limit_rows_check = opts.limit_rows_check
+        self.max_row_spin = opts.max_row_spin
+        self.word_span_spin = opts.word_span_spin
+        self.dark_theme_check = opts.dark_theme_check
+        self.specifier_column_edit = opts.specifier_column_edit
+        self.specifier_radius_spin = opts.specifier_radius_spin
+
         # _on_header_row_changed calls _sync_limit_rows_min internally, so connect once
         self.header_row_edit.textChanged.connect(self._on_header_row_changed)
-
-        # Reset column selection whenever the Excel file changes
         self.excel_edit.textChanged.connect(self._reset_annotation_columns)
         self.code_column_edit.textChanged.connect(self._update_detail_columns_button)
         self.count_column_edit.textChanged.connect(self._update_detail_columns_button)
-
-        advanced = build_advanced_section()
-        self.advanced_container = advanced.container
-        self.word_span_spin = advanced.word_span_spin
-        self.dark_theme_check = advanced.dark_theme_check
-        self.specifier_column_edit = advanced.specifier_column_edit
-        self.specifier_radius_spin = advanced.specifier_radius_spin
 
         log_section = build_log_section()
         self.log = log_section.text_edit
@@ -226,7 +221,7 @@ class AnnotatorWindow(QWidget):
         container_layout.setAlignment(Qt.AlignTop)
 
         container_layout.addWidget(files.group)
-        container_layout.addLayout(options.layout)
+        container_layout.addWidget(opts.container)
 
         # Detail columns selector row
         detail_row = QHBoxLayout()
@@ -243,8 +238,6 @@ class AnnotatorWindow(QWidget):
         detail_row.addSpacing(8)
         detail_row.addWidget(self.detail_columns_label)
         detail_row.addStretch()
-        container_layout.addWidget(self.advanced_container)
-
         container_layout.addLayout(detail_row)
 
         run_row = QHBoxLayout()
