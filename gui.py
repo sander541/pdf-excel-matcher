@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressDialog,
     QPushButton,
-    QToolButton,
+
     QVBoxLayout,
     QHBoxLayout,
     QSizePolicy,
@@ -209,7 +209,7 @@ class AnnotatorWindow(QWidget):
         self.count_column_edit.textChanged.connect(self._update_detail_columns_button)
 
         advanced = build_advanced_section()
-        self.advanced_box = advanced.box
+        self.advanced_container = advanced.container
         self.word_span_spin = advanced.word_span_spin
         self.dark_theme_check = advanced.dark_theme_check
         self.specifier_column_edit = advanced.specifier_column_edit
@@ -245,17 +245,7 @@ class AnnotatorWindow(QWidget):
         detail_row.addStretch()
         container_layout.addLayout(detail_row)
 
-        toggle_row = QHBoxLayout()
-        self.advanced_toggle = QToolButton(text="Show Advanced Options")
-        self.advanced_toggle.setCheckable(True)
-        self.advanced_toggle.setChecked(False)
-        self.advanced_toggle.setToolTip(tooltip_text("advanced_toggle"))
-        self.advanced_toggle.clicked.connect(self._toggle_advanced)
-        toggle_row.addWidget(self.advanced_toggle)
-        toggle_row.addStretch()
-        container_layout.addLayout(toggle_row)
-
-        container_layout.addWidget(self.advanced_box)
+        container_layout.addWidget(self.advanced_container)
 
         run_row = QHBoxLayout()
         self.run_button = QPushButton("Process")
@@ -370,11 +360,7 @@ class AnnotatorWindow(QWidget):
             self._update_pdf_buttons()
             self.pdf_list.items_changed.emit()
 
-    def _toggle_advanced(self, checked: bool) -> None:
-        self.advanced_box.setVisible(checked)
-        self.advanced_toggle.setText(
-            "Hide Advanced Options" if checked else "Show Advanced Options"
-        )
+
 
     def _collect_config(self) -> PipelineOptions | None:
         excel_path = Path(self.excel_edit.text()).expanduser()

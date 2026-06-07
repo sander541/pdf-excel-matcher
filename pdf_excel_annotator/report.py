@@ -38,8 +38,6 @@ def write_report(
     header_row = metadata.get("header_row")
     max_row = metadata.get("max_row")
 
-    multi_pdf = isinstance(pdf_paths, (list, tuple)) and len(pdf_paths) > 1
-
     if pdf_paths:
         if isinstance(pdf_paths, (list, tuple)):
             for idx, path in enumerate(pdf_paths, start=1):
@@ -58,26 +56,21 @@ def write_report(
     lines.append("")
 
     def _match_status(row: MatchRow) -> str:
-        """Return Yes / Partial / No depending on how many occurrences were found."""
         if row.actual_count == 0:
             return "No"
         if row.actual_count < row.expected_count:
             return "Partial"
         return "Yes"
 
-    def _page(row: MatchRow) -> str:
-        return str(row.first_page) if row.first_page is not None else "-"
-
     def _source(row: MatchRow) -> str:
         if row.detection_source is None:
             return "-"
         return _SOURCE_LABELS.get(row.detection_source, row.detection_source.capitalize())
 
-    # Show Expected/Found columns whenever a count column was used.
     has_counts = any(row.expected_count > 1 for row in rows)
 
     if has_counts:
-        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Page", "Found in"]
+        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Found in"]
         table_rows = [
             [
                 str(row.excel_row),
@@ -85,19 +78,17 @@ def write_report(
                 str(row.expected_count),
                 str(row.actual_count),
                 _match_status(row),
-                _page(row),
                 _source(row),
             ]
             for row in rows
         ]
     else:
-        headers = ["Excel Row", "Code", "Matched", "Page", "Found in"]
+        headers = ["Excel Row", "Code", "Matched", "Found in"]
         table_rows = [
             [
                 str(row.excel_row),
                 row.code,
                 _match_status(row),
-                _page(row),
                 _source(row),
             ]
             for row in rows
@@ -115,9 +106,7 @@ def write_report(
         return "".join(segments) + "+"
 
     def fmt_row(values: Sequence[str]) -> str:
-        cells = [
-            values[idx].ljust(widths[idx]) for idx in range(len(widths))
-        ]
+        cells = [values[idx].ljust(widths[idx]) for idx in range(len(widths))]
         return "| " + " | ".join(cells) + " |"
 
     lines.append(border("-"))

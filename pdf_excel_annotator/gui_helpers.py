@@ -178,7 +178,7 @@ class OptionsSection:
 
 @dataclass
 class AdvancedSection:
-    box: QGroupBox
+    container: QWidget
     word_span_spin: QSpinBox
     dark_theme_check: QCheckBox
     specifier_column_edit: QLineEdit
@@ -379,66 +379,62 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
 
 
 def build_advanced_section() -> AdvancedSection:
-    box = QGroupBox()
-    box.setVisible(False)
-    layout = QGridLayout(box)
+    """Build the always-visible advanced options row."""
+    container = QWidget()
+    row = QHBoxLayout(container)
+    row.setContentsMargins(0, 0, 0, 0)
+    row.setSpacing(10)
 
-    layout.addWidget(QLabel("Max word span:"), 0, 0)
+    def _small_widget(*widgets) -> QWidget:
+        w = QWidget()
+        w.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        for item in widgets:
+            lay.addWidget(item)
+        return w
+
+    # Max word span
+    row.addWidget(QLabel("Max word span:"))
     word_span_spin = QSpinBox()
     word_span_spin.setMinimum(1)
     word_span_spin.setValue(4)
+    word_span_spin.setFixedWidth(60)
     word_span_spin.setToolTip(tooltip_text("word_span"))
-    word_row = QWidget()
-    word_layout = QHBoxLayout(word_row)
-    word_layout.setContentsMargins(0, 0, 0, 0)
-    word_layout.setSpacing(4)
-    word_layout.addWidget(word_span_spin)
-    word_layout.addWidget(HintLabel(tooltip_text("word_span_hint")))
-    layout.addWidget(word_row, 0, 1)
+    row.addWidget(_small_widget(word_span_spin, HintLabel(tooltip_text("word_span_hint"))))
+    row.addSpacing(16)
 
-    # Appearance
-    dark_theme_check = QCheckBox("Use dark theme")
-    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
-    theme_row = QWidget()
-    theme_layout = QHBoxLayout(theme_row)
-    theme_layout.setContentsMargins(0, 0, 0, 0)
-    theme_layout.setSpacing(4)
-    theme_layout.addWidget(dark_theme_check)
-    theme_layout.addWidget(HintLabel(tooltip_text("dark_theme")))
-    theme_layout.addStretch()
-    layout.addWidget(theme_row, 0, 2, 1, 2)
-
-    # Specifier (duplicate-code disambiguation)
-    layout.addWidget(QLabel("Specifier column:"), 1, 0)
+    # Specifier column
+    row.addWidget(QLabel("Specifier column:"))
     specifier_column_edit = QLineEdit()
-    specifier_column_edit.setFixedWidth(70)
-    specifier_column_edit.setPlaceholderText("(optional)")
+    specifier_column_edit.setFixedWidth(60)
+    specifier_column_edit.setPlaceholderText("(opt.)")
     specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
     specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
-    spec_col_row = QWidget()
-    spec_col_layout = QHBoxLayout(spec_col_row)
-    spec_col_layout.setContentsMargins(0, 0, 0, 0)
-    spec_col_layout.setSpacing(4)
-    spec_col_layout.addWidget(specifier_column_edit)
-    spec_col_layout.addWidget(HintLabel(tooltip_text("specifier_column")))
-    layout.addWidget(spec_col_row, 1, 1)
+    row.addWidget(_small_widget(specifier_column_edit, HintLabel(tooltip_text("specifier_column"))))
+    row.addSpacing(16)
 
-    layout.addWidget(QLabel("Specifier radius (pt):"), 1, 2)
+    # Specifier radius
+    row.addWidget(QLabel("Specifier radius (pt):"))
     specifier_radius_spin = QSpinBox()
     specifier_radius_spin.setMinimum(10)
     specifier_radius_spin.setMaximum(500)
     specifier_radius_spin.setValue(80)
+    specifier_radius_spin.setFixedWidth(60)
     specifier_radius_spin.setToolTip(tooltip_text("specifier_radius"))
-    spec_rad_row = QWidget()
-    spec_rad_layout = QHBoxLayout(spec_rad_row)
-    spec_rad_layout.setContentsMargins(0, 0, 0, 0)
-    spec_rad_layout.setSpacing(4)
-    spec_rad_layout.addWidget(specifier_radius_spin)
-    spec_rad_layout.addWidget(HintLabel(tooltip_text("specifier_radius_hint")))
-    layout.addWidget(spec_rad_row, 1, 3)
+    row.addWidget(_small_widget(specifier_radius_spin, HintLabel(tooltip_text("specifier_radius_hint"))))
+    row.addSpacing(16)
+
+    # Dark theme
+    dark_theme_check = QCheckBox("Dark theme")
+    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
+    row.addWidget(_small_widget(dark_theme_check, HintLabel(tooltip_text("dark_theme"))))
+
+    row.addStretch(1)
 
     return AdvancedSection(
-        box=box,
+        container=container,
         word_span_spin=word_span_spin,
         dark_theme_check=dark_theme_check,
         specifier_column_edit=specifier_column_edit,
