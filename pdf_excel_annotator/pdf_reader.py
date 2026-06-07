@@ -181,7 +181,15 @@ def _match_target_codes(
     normalized_text: str,
     targets: Sequence[str],
 ) -> List[str]:
-    """Return target codes that appear inside the normalized text."""
+    """Return target codes that appear inside the normalized text.
+
+    When a longer code matches (e.g. SU-02.1V), any shorter code that is a
+    string-prefix of it (e.g. SU-02) is suppressed from the result. Without
+    this, the bare base code would be extracted as a separate occurrence and
+    could be incorrectly claimed by a different Excel entry via variant
+    fallback (e.g. SU-02.3V consuming the SU-02 occurrence that belongs to
+    the SU-02.1V location).
+    """
 
     hits: List[str] = []
     if not normalized_text:
@@ -203,6 +211,16 @@ def _match_target_codes(
                 continue
             hits.append(code)
             break
+
+    # Suppress any hit that is a proper string-prefix of a longer hit.
+    # e.g. if both SU-02.1V and SU-02 matched, keep only SU-02.1V.
+    if len(hits) > 1:
+        hits_set = set(hits)
+        hits = [h for h in hits if not any(
+            other != h and other.startswith(h)
+            for other in hits_set
+        )]
+
     return hits
 
 
