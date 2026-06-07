@@ -549,7 +549,7 @@ class AnnotatorWindow(QWidget):
             self.detail_columns_label.setText("Set Excel file and header row to configure")
             self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
         elif self._annotation_columns is None:
-            self.detail_columns_label.setText("All columns shown (count column excluded)")
+            self.detail_columns_label.setText("All columns shown (count column excluded by default)")
             self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
         else:
             n = len(self._annotation_columns)
@@ -573,11 +573,8 @@ class AnnotatorWindow(QWidget):
             QMessageBox.information(self, "No columns found", "The header row appears to be empty.")
             return
 
-        # Default exclusions: code column + count column
+        # Default exclusion: count column only (code column is included by default)
         default_excluded: set[str] = set()
-        code_col = self.code_column_edit.text().strip().upper()
-        if code_col:
-            default_excluded.add(code_col)
         count_col = self.count_column_edit.text().strip().upper()
         if count_col:
             default_excluded.add(count_col)
