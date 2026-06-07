@@ -9,17 +9,25 @@ from typing import List
 
 WHITESPACE_RE = re.compile(r"\s+")
 CODE_COLUMN_RE = re.compile(r"^[A-Za-z]{1,3}$")
+NUMERIC_RE = re.compile(r"\d+")
 
 
 def normalize_code(value: str) -> str:
-    """Return a normalized string used for comparisons."""
+    """Return a normalized string used for comparisons.
+
+    Steps:
+    1. Strip surrounding whitespace and collapse internal whitespace.
+    2. Uppercase.
+    3. Strip leading zeros from every numeric segment so that
+       "SMU-01" and "SMU-1" compare equal.
+    """
     if value is None:
         return ""
     trimmed = value.strip()
     if not trimmed:
         return ""
-    no_ws = WHITESPACE_RE.sub("", trimmed)
-    return no_ws.upper()
+    no_ws = WHITESPACE_RE.sub("", trimmed).upper()
+    return NUMERIC_RE.sub(lambda m: str(int(m.group())), no_ws)
 
 
 def generate_code_variants(code_norm: str) -> List[str]:
