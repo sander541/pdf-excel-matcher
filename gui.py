@@ -243,9 +243,9 @@ class AnnotatorWindow(QWidget):
         detail_row.addSpacing(8)
         detail_row.addWidget(self.detail_columns_label)
         detail_row.addStretch()
-        container_layout.addLayout(detail_row)
-
         container_layout.addWidget(self.advanced_container)
+
+        container_layout.addLayout(detail_row)
 
         run_row = QHBoxLayout()
         self.run_button = QPushButton("Process")
