@@ -72,8 +72,10 @@ def test_expected_found_columns_shown_when_counts_used():
 
 def test_expected_found_columns_hidden_when_no_counts():
     content = _write([_row("ABC", actual=1, expected=1)])
+    # "Expected" and "Found" (the count columns) should be absent;
+    # "Found in" (always-present column) will still appear.
     assert "Expected" not in content
-    assert "Found" not in content
+    assert "| Found |" not in content
 
 
 # ── Notes section ──────────────────────────────────────────────────────────────

@@ -32,7 +32,7 @@ def run_pipeline(
             logger.info(message)
 
     excel_path = options.excel_path
-    emit(f"Loading Excel workbook: {excel_path}")
+    emit(f"Loading Excel workbook: {excel_path.name}")
     excel_entries = load_excel_codes(
         str(excel_path),
         options.code_column,
@@ -54,7 +54,7 @@ def run_pipeline(
 
     combined_occurrences: Dict[str, List] = {}
     for pdf_path in options.pdf_paths:
-        emit(f"Scanning PDF for codes: {pdf_path}")
+        emit(f"Scanning PDF: {Path(pdf_path).name}")
 
         def _progress(msg: str, *, name=Path(pdf_path).name) -> None:
             emit(f"[{name}] {msg}")
@@ -78,16 +78,16 @@ def run_pipeline(
         "max_row": options.max_row,
     }
     report_path = write_report(options.output_path, rows, notes, metadata)
-    emit(f"Report written to {report_path}")
+    emit(f"Report written: {report_path.name}")
 
     annotated_paths: Dict[str, Path] = {}
     if options.annotated_dir:
         if details:
             annotated_paths = annotate_matches(details, options.annotated_dir)
             for original, annotated in annotated_paths.items():
-                emit(f"Annotated PDF saved: {annotated} (from {original})")
+                emit(f"Annotated PDF saved: {Path(annotated).name}")
         else:
-            emit("Skipping annotated PDFs because no matches were found.")
+            emit("No matches found — annotated PDFs skipped.")
 
     return PipelineResult(
         report_path=report_path,

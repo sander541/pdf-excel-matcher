@@ -10,6 +10,13 @@ from .matcher import MatchRow
 from .utils import ensure_output_path
 
 
+_SOURCE_LABELS: dict[str, str] = {
+    "text": "Text",
+    "annotation": "Annotation",
+    "mixed": "Mixed",
+}
+
+
 def write_report(
     output_path: str | Path,
     rows: Sequence[MatchRow],
@@ -30,6 +37,8 @@ def write_report(
     code_column = metadata.get("code_column")
     header_row = metadata.get("header_row")
     max_row = metadata.get("max_row")
+
+    multi_pdf = isinstance(pdf_paths, (list, tuple)) and len(pdf_paths) > 1
 
     if pdf_paths:
         if isinstance(pdf_paths, (list, tuple)):
@@ -56,12 +65,19 @@ def write_report(
             return "Partial"
         return "Yes"
 
-    # Show Expected/Found columns whenever a count column was used
-    # (i.e. any row has expected_count > 1, or any partial/zero match exists).
+    def _page(row: MatchRow) -> str:
+        return str(row.first_page) if row.first_page is not None else "-"
+
+    def _source(row: MatchRow) -> str:
+        if row.detection_source is None:
+            return "-"
+        return _SOURCE_LABELS.get(row.detection_source, row.detection_source.capitalize())
+
+    # Show Expected/Found columns whenever a count column was used.
     has_counts = any(row.expected_count > 1 for row in rows)
 
     if has_counts:
-        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Source"]
+        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Page", "Found in"]
         table_rows = [
             [
                 str(row.excel_row),
@@ -69,18 +85,20 @@ def write_report(
                 str(row.expected_count),
                 str(row.actual_count),
                 _match_status(row),
-                row.detection_source or "-",
+                _page(row),
+                _source(row),
             ]
             for row in rows
         ]
     else:
-        headers = ["Excel Row", "Code", "Matched", "Source"]
+        headers = ["Excel Row", "Code", "Matched", "Page", "Found in"]
         table_rows = [
             [
                 str(row.excel_row),
                 row.code,
                 _match_status(row),
-                row.detection_source or "-",
+                _page(row),
+                _source(row),
             ]
             for row in rows
         ]

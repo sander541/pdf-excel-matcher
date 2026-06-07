@@ -22,8 +22,9 @@ class MatchRow:
     code: str
     matched: bool
     detection_source: str | None = None
-    expected_count: int = 1  # From count column
-    actual_count: int = 0    # How many actually found
+    expected_count: int = 1   # From count column
+    actual_count: int = 0     # How many actually found
+    first_page: int | None = None   # Page number of first match
 
 
 @dataclass
@@ -67,6 +68,7 @@ def build_match_results(
         matched_key = None
 
         first_source: str | None = None
+        first_page: int | None = None
         for variant in variants:
             occ_list = available_occurrences.get(variant)
             if not occ_list:
@@ -77,6 +79,8 @@ def build_match_results(
                 matched_occurrence = _pick_occurrence(occ_list, entry.specifier_norm)
                 if first_source is None:
                     first_source = matched_occurrence.source
+                if first_page is None:
+                    first_page = matched_occurrence.page
                 matched_count += 1
                 usage_counts[variant] += 1
                 details.append(MatchDetail(excel_entry=entry, occurrence=matched_occurrence))
@@ -97,6 +101,7 @@ def build_match_results(
                 detection_source=first_source,
                 expected_count=entry.expected_count,
                 actual_count=matched_count,
+                first_page=first_page,
             )
         )
 
