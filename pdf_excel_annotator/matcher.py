@@ -22,8 +22,8 @@ class MatchRow:
     code: str
     matched: bool
     detection_source: str | None = None
-    expected_count: int = 1  # From count column
-    actual_count: int = 0    # How many actually found
+    expected_count: int = 1   # From count column
+    actual_count: int = 0     # How many actually found
 
 
 @dataclass

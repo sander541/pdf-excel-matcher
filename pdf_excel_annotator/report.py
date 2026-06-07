@@ -10,6 +10,13 @@ from .matcher import MatchRow
 from .utils import ensure_output_path
 
 
+_SOURCE_LABELS: dict[str, str] = {
+    "text": "Text",
+    "annotation": "Annotation",
+    "mixed": "Mixed",
+}
+
+
 def write_report(
     output_path: str | Path,
     rows: Sequence[MatchRow],
@@ -48,30 +55,41 @@ def write_report(
         lines.append(f"Max row: {max_row}")
     lines.append("")
 
-    # Check if any row has expected_count > 1 (meaning count column was used)
+    def _match_status(row: MatchRow) -> str:
+        if row.actual_count == 0:
+            return "No"
+        if row.actual_count < row.expected_count:
+            return "Partial"
+        return "Yes"
+
+    def _source(row: MatchRow) -> str:
+        if row.detection_source is None:
+            return "-"
+        return _SOURCE_LABELS.get(row.detection_source, row.detection_source.capitalize())
+
     has_counts = any(row.expected_count > 1 for row in rows)
 
     if has_counts:
-        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Source"]
+        headers = ["Excel Row", "Code", "Expected", "Found", "Matched", "Found in"]
         table_rows = [
             [
                 str(row.excel_row),
                 row.code,
                 str(row.expected_count),
                 str(row.actual_count),
-                "Yes" if row.matched else "No",
-                row.detection_source or "-",
+                _match_status(row),
+                _source(row),
             ]
             for row in rows
         ]
     else:
-        headers = ["Excel Row", "Code", "Matched", "Source"]
+        headers = ["Excel Row", "Code", "Matched", "Found in"]
         table_rows = [
             [
                 str(row.excel_row),
                 row.code,
-                "Yes" if row.matched else "No",
-                row.detection_source or "-",
+                _match_status(row),
+                _source(row),
             ]
             for row in rows
         ]
@@ -88,9 +106,7 @@ def write_report(
         return "".join(segments) + "+"
 
     def fmt_row(values: Sequence[str]) -> str:
-        cells = [
-            values[idx].ljust(widths[idx]) for idx in range(len(widths))
-        ]
+        cells = [values[idx].ljust(widths[idx]) for idx in range(len(widths))]
         return "| " + " | ".join(cells) + " |"
 
     lines.append(border("-"))

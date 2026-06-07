@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressDialog,
     QPushButton,
-    QToolButton,
+
     QVBoxLayout,
     QHBoxLayout,
     QSizePolicy,
@@ -31,8 +31,7 @@ from pdf_excel_annotator.pipeline import run_pipeline
 from pdf_excel_annotator.utils import is_valid_code_column
 from pdf_excel_annotator.gui_helpers import (
     build_files_section,
-    build_options_section,
-    build_advanced_section,
+    build_options_grid,
     build_log_section,
     tooltip_text,
 )
@@ -194,26 +193,22 @@ class AnnotatorWindow(QWidget):
         self.output_dir_edit = files.output_dir_edit
         self.annotated_checkbox = files.annotated_checkbox
 
-        options = build_options_section(self._toggle_limit_rows)
-        self.code_column_edit = options.code_column_edit
-        self.count_column_edit = options.count_column_edit
-        self.header_row_edit = options.header_row_edit
-        self.limit_rows_check = options.limit_rows_check
-        self.max_row_spin = options.max_row_spin
+        opts = build_options_grid(self._toggle_limit_rows)
+        self.code_column_edit = opts.code_column_edit
+        self.count_column_edit = opts.count_column_edit
+        self.header_row_edit = opts.header_row_edit
+        self.limit_rows_check = opts.limit_rows_check
+        self.max_row_spin = opts.max_row_spin
+        self.word_span_spin = opts.word_span_spin
+        self.dark_theme_check = opts.dark_theme_check
+        self.specifier_column_edit = opts.specifier_column_edit
+        self.specifier_radius_spin = opts.specifier_radius_spin
+
         # _on_header_row_changed calls _sync_limit_rows_min internally, so connect once
         self.header_row_edit.textChanged.connect(self._on_header_row_changed)
-
-        # Reset column selection whenever the Excel file changes
         self.excel_edit.textChanged.connect(self._reset_annotation_columns)
         self.code_column_edit.textChanged.connect(self._update_detail_columns_button)
         self.count_column_edit.textChanged.connect(self._update_detail_columns_button)
-
-        advanced = build_advanced_section()
-        self.advanced_box = advanced.box
-        self.word_span_spin = advanced.word_span_spin
-        self.dark_theme_check = advanced.dark_theme_check
-        self.specifier_column_edit = advanced.specifier_column_edit
-        self.specifier_radius_spin = advanced.specifier_radius_spin
 
         log_section = build_log_section()
         self.log = log_section.text_edit
@@ -226,7 +221,7 @@ class AnnotatorWindow(QWidget):
         container_layout.setAlignment(Qt.AlignTop)
 
         container_layout.addWidget(files.group)
-        container_layout.addLayout(options.layout)
+        container_layout.addWidget(opts.container)
 
         # Detail columns selector row
         detail_row = QHBoxLayout()
@@ -244,18 +239,6 @@ class AnnotatorWindow(QWidget):
         detail_row.addWidget(self.detail_columns_label)
         detail_row.addStretch()
         container_layout.addLayout(detail_row)
-
-        toggle_row = QHBoxLayout()
-        self.advanced_toggle = QToolButton(text="Show Advanced Options")
-        self.advanced_toggle.setCheckable(True)
-        self.advanced_toggle.setChecked(False)
-        self.advanced_toggle.setToolTip(tooltip_text("advanced_toggle"))
-        self.advanced_toggle.clicked.connect(self._toggle_advanced)
-        toggle_row.addWidget(self.advanced_toggle)
-        toggle_row.addStretch()
-        container_layout.addLayout(toggle_row)
-
-        container_layout.addWidget(self.advanced_box)
 
         run_row = QHBoxLayout()
         self.run_button = QPushButton("Process")
@@ -370,11 +353,7 @@ class AnnotatorWindow(QWidget):
             self._update_pdf_buttons()
             self.pdf_list.items_changed.emit()
 
-    def _toggle_advanced(self, checked: bool) -> None:
-        self.advanced_box.setVisible(checked)
-        self.advanced_toggle.setText(
-            "Hide Advanced Options" if checked else "Show Advanced Options"
-        )
+
 
     def _collect_config(self) -> PipelineOptions | None:
         excel_path = Path(self.excel_edit.text()).expanduser()
@@ -549,7 +528,7 @@ class AnnotatorWindow(QWidget):
             self.detail_columns_label.setText("Set Excel file and header row to configure")
             self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
         elif self._annotation_columns is None:
-            self.detail_columns_label.setText("All columns shown (count column excluded)")
+            self.detail_columns_label.setText("All columns shown (count column excluded by default)")
             self.detail_columns_label.setStyleSheet("color: gray; font-size: 11px;")
         else:
             n = len(self._annotation_columns)
@@ -573,11 +552,8 @@ class AnnotatorWindow(QWidget):
             QMessageBox.information(self, "No columns found", "The header row appears to be empty.")
             return
 
-        # Default exclusions: code column + count column
+        # Default exclusion: count column only (code column is included by default)
         default_excluded: set[str] = set()
-        code_col = self.code_column_edit.text().strip().upper()
-        if code_col:
-            default_excluded.add(code_col)
         count_col = self.count_column_edit.text().strip().upper()
         if count_col:
             default_excluded.add(count_col)
@@ -679,26 +655,7 @@ class AnnotatorWindow(QWidget):
                 "Failed to download the update. Please try again later.",
             )
 
-def _setup_logging() -> None:
-    """Write logs to a file next to the executable so we can diagnose issues."""
-    import logging
-    from pathlib import Path
-
-    if getattr(sys, "frozen", False):
-        log_dir = Path(sys.executable).parent
-    else:
-        log_dir = Path(__file__).parent
-
-    log_path = log_dir / "pdf-excel-annotator.log"
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        handlers=[logging.FileHandler(log_path, encoding="utf-8")],
-    )
-
-
 def main() -> int:  # pragma: no cover - GUI launcher
-    _setup_logging()
     app = QApplication(sys.argv)
     QToolTip.setFont(QFontDatabase.systemFont(QFontDatabase.GeneralFont))
     app.setStyleSheet(

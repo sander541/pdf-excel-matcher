@@ -35,31 +35,21 @@ TOOLTIPS: dict[str, str] = {
     "add_pdf": "Add PDFs\nOpen a file picker and append one or more PDFs to the list.",
     "remove_pdf": "Remove PDFs\nDelete the currently selected entries from the list.",
     "output_directory": "Output directory\nThe generated report and any annotated PDFs are saved inside this folder.",
-    "annotated_pdfs": "Highlighted copies\nEnable to save annotated PDF copies for visual review.\nOtherwise only matching report is created for review.",
-    "code_column": "Code column\nExcel column letter(s) that store the codes (e.g., C or AA).",
-    "count_column": "Count column\nOptional: Excel column letter with expected occurrence counts (e.g., D).\nIf provided, the tool finds N occurrences per code instead of just 1.",
-    "specifier_column": "Specifier column\nOptional: Excel column letter whose value appears near the code in the PDF (e.g., A for room/door numbers).\nUsed to assign the correct PDF location when the same code appears multiple times.",
-    "specifier_radius": "Specifier radius\nSearch radius in PDF points when looking for specifier values near a code (default: 80).\nReduce for dense CAD drawings; increase for large A0 sheets.",
-    "specifier_radius_hint": "Proximity radius\n80 pt ≈ 1.1 inch. Decrease if codes bleed across rooms; increase for large sheets.",
+    "annotated_pdfs": "Annotated PDFs\nEnable to save annotated PDF copies with highlighted matches and detail popups.\nOtherwise only the matching report is written.",
+    "code_column": "Code column\nExcel column letter that stores the codes to find (e.g., B or AA).",
+    "count_column": "Count column\nOptional: Excel column with how many times each code should appear on the drawings (e.g., C).\nIf set, the report shows how many were found vs. expected.",
+    "specifier_column": "Specifier column\nOptional: Excel column whose value (e.g., a door number) is printed next to the code on the drawing.\nWhen the same code appears multiple times, this pinpoints which occurrence belongs to which row.",
+    "specifier_radius": "Specifier search area\nHow close (in inches, default ≈ 1.1\") the specifier value must be to the code on the drawing.\nDecrease for dense plans where codes are tightly packed; increase for large sheets.",
+    "specifier_radius_hint": "Search area\nDefault 80 pt ≈ 1.1 inch. Decrease if nearby codes interfere; increase for large A0 sheets.",
     "header_row": "Header row\nRow number that contains the column titles; data starts on the next row.",
-    "row_limit": "Row ceiling\nEnable if you want to scan only the first N Excel rows.",
-    "max_row": "Max row\nHighest Excel row inspected whenever 'Limit rows' is enabled.",
-    "advanced_toggle": "Advanced options\nShow or hide OCR and matching tuning controls.",
-    "word_span": "Max word span\nHow many adjacent PDF words are concatenated before matching.",
-    "word_span_hint": "Word span\nIncrease to catch codes that break across multiple OCR words (e.g., V MP U-1).",
-    "ocr_zoom": "OCR zoom\nRendering zoom before OCR; higher values sharpen tiny text but take longer.",
-    "ocr_zoom_hint": "Zoom factor\nBoost if codes are tiny; decrease to speed things up when text is large.",
-    "ocr_conf": "OCR confidence\nMinimum OCR score accepted; lower it to keep more words (and more noise).",
-    "ocr_conf_hint": "Confidence filter\nReduce to keep shaky OCR hits, increase to keep only high-confidence words.",
-    "ocr_angles": "OCR angles\nComma-separated rotation angles (degrees) applied during OCR (e.g., 0,90,180).",
-    "ocr_angles_hint": "Rotation passes\nUse when labels may appear rotated—add angles like 45 if needed.",
-    "enable_ocr": "OCR fallback\nEnable when PDFs lack a text layer; performs slower raster OCR per page.",
-    "enable_ocr_hint": "OCR fallback\nTurn on when native text extraction misses labels; expect longer runs.",
-    "enable_vector": "Vector OCR\nAttempt to OCR CAD-style vector labels (door tags, etc.).",
-    "enable_vector_hint": "Vector labels\nScans likely label rectangles even when there is no text layer.",
-    "dark_theme": "Dark theme\nUse a darker palette better suited for Windows and low‑light environments.",
-    "process_button": "Process files\nScan PDFs, generate the report, and write annotated copies if enabled.",
-    "clear_log": "Clear log\nRemove every log message from this session.",
+    "row_limit": "Limit rows\nEnable to stop reading the Excel sheet after a set number of rows — useful for testing.",
+    "max_row": "Max row\nHighest Excel row to read when 'Limit rows' is checked.",
+    "advanced_toggle": "Advanced options\nShow or hide matching and appearance tuning controls.",
+    "word_span": "Max word span\nHow many adjacent words in the drawing are joined together when searching for a code.\nIncrease if codes are split across multiple words on the drawing.",
+    "word_span_hint": "Word span\nIncrease to catch codes split across multiple text tokens (e.g., 'V MP U-1' found as three words).",
+    "dark_theme": "Dark theme\nUse a darker colour scheme — better suited for Windows and low-light environments.",
+    "process_button": "Process\nStart scanning — reads the Excel codes, searches all PDFs, writes the report and annotated copies.",
+    "clear_log": "Clear log\nRemove all messages from the log panel.",
 }
 
 
@@ -177,18 +167,14 @@ class FilesSection:
 
 
 @dataclass
-class OptionsSection:
-    layout: QHBoxLayout
+class OptionsGridSection:
+    """Combined options + advanced settings in one aligned grid."""
+    container: QWidget
     code_column_edit: QLineEdit
     count_column_edit: QLineEdit
     header_row_edit: QLineEdit
     limit_rows_check: QCheckBox
     max_row_spin: QSpinBox
-
-
-@dataclass
-class AdvancedSection:
-    box: QGroupBox
     word_span_spin: QSpinBox
     dark_theme_check: QCheckBox
     specifier_column_edit: QLineEdit
@@ -303,57 +289,60 @@ def build_files_section(
     )
 
 
-def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsSection:
-    row = QHBoxLayout()
-    row.setContentsMargins(0, 0, 0, 0)
-    row.setSpacing(10)
+def build_options_grid(toggle_limit_rows: Callable[[bool], None]) -> OptionsGridSection:
+    """Build options + advanced as a two-row QGridLayout so columns align perfectly."""
+    container = QWidget()
+    grid = QGridLayout(container)
+    grid.setContentsMargins(0, 0, 0, 0)
+    grid.setHorizontalSpacing(8)
+    grid.setVerticalSpacing(8)
+    # Last column absorbs leftover space; all input columns are fixed-size.
+    grid.setColumnStretch(7, 1)
 
-    code_widget = QWidget()
-    code_layout = QHBoxLayout(code_widget)
-    code_layout.setContentsMargins(0, 0, 0, 0)
-    code_layout.setSpacing(6)
-    code_layout.addWidget(QLabel("Code column:"))
+    INPUT_W = 70
+
+    def _lbl(text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        return lbl
+
+    def _cell(*widgets) -> QWidget:
+        """Wrap input + hint tightly; size policy keeps it from stretching."""
+        w = QWidget()
+        w.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        for item in widgets:
+            lay.addWidget(item)
+        return w
+
+    # ── Row 0: Code column | Count column | Header row | Limit rows ──────────
+
+    grid.addWidget(_lbl("Code column:"), 0, 0)
     code_column_edit = QLineEdit()
-    code_column_edit.setFixedWidth(70)
+    code_column_edit.setFixedWidth(INPUT_W)
     code_column_edit.setPlaceholderText("e.g. C")
     code_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{1,3}$")))
     code_column_edit.setToolTip(tooltip_text("code_column"))
-    code_layout.addWidget(code_column_edit)
-    code_layout.addWidget(HintLabel(tooltip_text("code_column")))
-    code_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(code_column_edit, HintLabel(tooltip_text("code_column"))), 0, 1)
 
-    count_widget = QWidget()
-    count_layout = QHBoxLayout(count_widget)
-    count_layout.setContentsMargins(0, 0, 0, 0)
-    count_layout.setSpacing(6)
-    count_layout.addWidget(QLabel("Count column:"))
+    grid.addWidget(_lbl("Count column:"), 0, 2)
     count_column_edit = QLineEdit()
-    count_column_edit.setFixedWidth(70)
+    count_column_edit.setFixedWidth(INPUT_W)
     count_column_edit.setPlaceholderText("(optional)")
     count_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
     count_column_edit.setToolTip(tooltip_text("count_column"))
-    count_layout.addWidget(count_column_edit)
-    count_layout.addWidget(HintLabel(tooltip_text("count_column")))
-    count_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(count_column_edit, HintLabel(tooltip_text("count_column"))), 0, 3)
 
-    header_widget = QWidget()
-    header_layout = QHBoxLayout(header_widget)
-    header_layout.setContentsMargins(0, 0, 0, 0)
-    header_layout.setSpacing(6)
-    header_layout.addWidget(QLabel("Header row:"))
+    grid.addWidget(_lbl("Header row:"), 0, 4)
     header_row_edit = QLineEdit()
-    header_row_edit.setFixedWidth(70)
+    header_row_edit.setFixedWidth(INPUT_W)
     header_row_edit.setPlaceholderText("e.g. 1")
     header_row_edit.setValidator(QIntValidator(1, 100000))
     header_row_edit.setToolTip(tooltip_text("header_row"))
-    header_layout.addWidget(header_row_edit)
-    header_layout.addWidget(HintLabel(tooltip_text("header_row")))
-    header_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(header_row_edit, HintLabel(tooltip_text("header_row"))), 0, 5)
 
-    limit_widget = QWidget()
-    limit_layout = QHBoxLayout(limit_widget)
-    limit_layout.setContentsMargins(0, 0, 0, 0)
-    limit_layout.setSpacing(6)
     limit_rows_check = QCheckBox("Limit rows")
     limit_rows_check.setToolTip(tooltip_text("row_limit"))
     limit_rows_check.toggled.connect(toggle_limit_rows)
@@ -364,91 +353,46 @@ def build_options_section(toggle_limit_rows: Callable[[bool], None]) -> OptionsS
     max_row_spin.setFixedWidth(90)
     max_row_spin.setEnabled(False)
     max_row_spin.setToolTip(tooltip_text("max_row"))
-    limit_layout.addWidget(limit_rows_check)
-    limit_layout.addWidget(max_row_spin)
-    limit_layout.addWidget(HintLabel(tooltip_text("row_limit")))
-    limit_widget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+    grid.addWidget(_cell(limit_rows_check, max_row_spin, HintLabel(tooltip_text("row_limit"))), 0, 6)
 
-    row.addWidget(code_widget)
-    row.addSpacing(10)
-    row.addWidget(count_widget)
-    row.addSpacing(16)
-    row.addWidget(header_widget)
-    row.addSpacing(16)
-    row.addWidget(limit_widget)
-    row.addStretch(1)
+    # ── Row 1: Max word span | Specifier column | Specifier radius | Dark theme
 
-    return OptionsSection(
-        layout=row,
+    grid.addWidget(_lbl("Max word span:"), 1, 0)
+    word_span_spin = QSpinBox()
+    word_span_spin.setMinimum(1)
+    word_span_spin.setValue(4)
+    word_span_spin.setFixedWidth(INPUT_W)
+    word_span_spin.setToolTip(tooltip_text("word_span"))
+    grid.addWidget(_cell(word_span_spin, HintLabel(tooltip_text("word_span_hint"))), 1, 1)
+
+    grid.addWidget(_lbl("Specifier column:"), 1, 2)
+    specifier_column_edit = QLineEdit()
+    specifier_column_edit.setFixedWidth(INPUT_W)
+    specifier_column_edit.setPlaceholderText("(optional)")
+    specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
+    specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
+    grid.addWidget(_cell(specifier_column_edit, HintLabel(tooltip_text("specifier_column"))), 1, 3)
+
+    grid.addWidget(_lbl("Specifier radius (pt):"), 1, 4)
+    specifier_radius_spin = QSpinBox()
+    specifier_radius_spin.setMinimum(10)
+    specifier_radius_spin.setMaximum(500)
+    specifier_radius_spin.setValue(80)
+    specifier_radius_spin.setFixedWidth(INPUT_W)
+    specifier_radius_spin.setToolTip(tooltip_text("specifier_radius"))
+    grid.addWidget(_cell(specifier_radius_spin, HintLabel(tooltip_text("specifier_radius_hint"))), 1, 5)
+
+    dark_theme_check = QCheckBox("Dark theme")
+    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
+    grid.addWidget(_cell(dark_theme_check, HintLabel(tooltip_text("dark_theme"))), 1, 6)
+
+    return OptionsGridSection(
+        container=container,
         code_column_edit=code_column_edit,
         count_column_edit=count_column_edit,
         header_row_edit=header_row_edit,
         limit_rows_check=limit_rows_check,
         max_row_spin=max_row_spin,
-    )
-
-
-def build_advanced_section() -> AdvancedSection:
-    box = QGroupBox()
-    box.setVisible(False)
-    layout = QGridLayout(box)
-
-    layout.addWidget(QLabel("Max word span:"), 0, 0)
-    word_span_spin = QSpinBox()
-    word_span_spin.setMinimum(1)
-    word_span_spin.setValue(4)
-    word_span_spin.setToolTip(tooltip_text("word_span"))
-    word_row = QWidget()
-    word_layout = QHBoxLayout(word_row)
-    word_layout.setContentsMargins(0, 0, 0, 0)
-    word_layout.setSpacing(4)
-    word_layout.addWidget(word_span_spin)
-    word_layout.addWidget(HintLabel(tooltip_text("word_span_hint")))
-    layout.addWidget(word_row, 0, 1)
-
-    # Appearance
-    dark_theme_check = QCheckBox("Use dark theme")
-    dark_theme_check.setToolTip(tooltip_text("dark_theme"))
-    theme_row = QWidget()
-    theme_layout = QHBoxLayout(theme_row)
-    theme_layout.setContentsMargins(0, 0, 0, 0)
-    theme_layout.setSpacing(4)
-    theme_layout.addWidget(dark_theme_check)
-    theme_layout.addWidget(HintLabel(tooltip_text("dark_theme")))
-    theme_layout.addStretch()
-    layout.addWidget(theme_row, 0, 2, 1, 2)
-
-    # Specifier (duplicate-code disambiguation)
-    layout.addWidget(QLabel("Specifier column:"), 1, 0)
-    specifier_column_edit = QLineEdit()
-    specifier_column_edit.setFixedWidth(70)
-    specifier_column_edit.setPlaceholderText("(optional)")
-    specifier_column_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"^[A-Za-z]{0,3}$")))
-    specifier_column_edit.setToolTip(tooltip_text("specifier_column"))
-    spec_col_row = QWidget()
-    spec_col_layout = QHBoxLayout(spec_col_row)
-    spec_col_layout.setContentsMargins(0, 0, 0, 0)
-    spec_col_layout.setSpacing(4)
-    spec_col_layout.addWidget(specifier_column_edit)
-    spec_col_layout.addWidget(HintLabel(tooltip_text("specifier_column")))
-    layout.addWidget(spec_col_row, 1, 1)
-
-    layout.addWidget(QLabel("Specifier radius (pt):"), 1, 2)
-    specifier_radius_spin = QSpinBox()
-    specifier_radius_spin.setMinimum(10)
-    specifier_radius_spin.setMaximum(500)
-    specifier_radius_spin.setValue(80)
-    specifier_radius_spin.setToolTip(tooltip_text("specifier_radius"))
-    spec_rad_row = QWidget()
-    spec_rad_layout = QHBoxLayout(spec_rad_row)
-    spec_rad_layout.setContentsMargins(0, 0, 0, 0)
-    spec_rad_layout.setSpacing(4)
-    spec_rad_layout.addWidget(specifier_radius_spin)
-    spec_rad_layout.addWidget(HintLabel(tooltip_text("specifier_radius_hint")))
-    layout.addWidget(spec_rad_row, 1, 3)
-
-    return AdvancedSection(
-        box=box,
         word_span_spin=word_span_spin,
         dark_theme_check=dark_theme_check,
         specifier_column_edit=specifier_column_edit,
